@@ -38,8 +38,8 @@ standardCentre <- function(x, log = FALSE){
 }
 
 electionDataScaled <- electionData %>%
-  mutate(median_weekly_household_income = rescale(median_weekly_household_income, to = c(0,1)), # Same range as proportion variables
-         lnc_prepoll_percentage = lnc_prepoll_percentage/100)
+  mutate(median_weekly_household_income = rescale(median_weekly_household_income, to = c(0,1)), # Same range as proportion predictors
+         lnc_prepoll_percentage = lnc_prepoll_percentage/100) # Percentage to proportion to make similar to other predictors
 
 #----------------- Graph data ----------------
 
@@ -65,10 +65,10 @@ draw_plot <- function(data, cols){
     ggplot(aes(x = values, y = lnc_ordinary_percentage)) +
     geom_point(alpha = 0.6) +
     geom_smooth(aes(group = covariates), formula = y ~ x, method = "lm") +
-    labs(title = "Relationship between quantitative variables and percentage of votes for Liberal/National Coalition",
+    labs(title = "Relationship between quantitative variables and percentage of votes for LNP",
          subtitle = "Data is at the Commonwealth Electorate level for the 2019 election.",
          x = "Value",
-         y = "% of Votes for Liberal/National Coalition",
+         y = "% of Votes for LNP",
          caption = "Source: Australian Electoral Commision and ABS.") +
     theme_bw() +
     theme(panel.grid.minor = element_blank()) +
@@ -80,7 +80,7 @@ draw_plot <- function(data, cols){
 CairoPNG("olet5608/output/eda_scatter.png", 800, 600)
 p <- draw_plot(data = electionDataScaled, cols = c("lnc_prepoll_percentage", "prop_over_50", 
                                              "couple_family_with_children", "median_weekly_household_income", 
-                                             "owned_outright", "born_overseas", "fully_engaged"))
+                                             "born_overseas"))
 print(p)
 dev.off()
 

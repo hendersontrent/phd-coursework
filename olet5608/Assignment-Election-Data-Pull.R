@@ -103,14 +103,6 @@ grab_elec_dems <- function(filepath = "olet5608/data/commonwealth electorate dat
     dplyr::select(c(electorate, median_weekly_household_income)) %>%
     drop_na()
   
-  # Proportion of properties owned outright
-  
-  propertyowned <- readxl::read_excel(filepath, sheet = "Table 4", skip = 6) %>%
-    clean_names() %>%
-    rename(electorate = 1) %>%
-    dplyr::select(c(electorate, owned_outright)) %>%
-    drop_na()
-  
   # Proportion of residents born overseas
   
   overseas <- readxl::read_excel(filepath, sheet = "Table 5", skip = 5) %>%
@@ -119,22 +111,12 @@ grab_elec_dems <- function(filepath = "olet5608/data/commonwealth electorate dat
     dplyr::select(c(electorate, born_overseas)) %>%
     drop_na()
   
-  # Proportion of residents fully engaged in education/employment
-  
-  educengagement <- readxl::read_excel(filepath, sheet = "Table 6", skip = 5) %>%
-    clean_names() %>%
-    rename(electorate = 1) %>%
-    dplyr::select(c(electorate, fully_engaged)) %>%
-    drop_na()
-  
   #-------------- Merge all together -----------------
   
   electorateDemographics <- prop_over_50 %>%
     left_join(families, by = c("electorate" = "electorate")) %>%
     left_join(householdincome, by = c("electorate" = "electorate")) %>%
-    left_join(propertyowned, by = c("electorate" = "electorate")) %>%
-    left_join(overseas, by = c("electorate" = "electorate")) %>%
-    left_join(educengagement, by = c("electorate" = "electorate"))
+    left_join(overseas, by = c("electorate" = "electorate"))
   
   return(electorateDemographics)
 }
