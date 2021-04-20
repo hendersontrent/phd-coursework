@@ -11,6 +11,8 @@
 
 library(dplyr)
 library(tidyr)
+library(readr)
+library(readxl)
 library(janitor)
 
 #----------------- Retrieve data ----------------
@@ -18,8 +20,6 @@ library(janitor)
 #--------------------
 # Two-party vote data
 #--------------------
-
-# Demographic data by electorate
 
 #' Function to pull all the two-party vote data by worksheet for each electorate
 #' 
@@ -111,19 +111,32 @@ grab_elec_dems <- function(filepath = "olet5608/data/commonwealth electorate dat
     dplyr::select(c(electorate, born_overseas)) %>%
     drop_na()
   
+  # Proportion of employed population who are professionals
+  
+  professionals <- readxl::read_excel(filepath, sheet = "Table 7", skip = 5) %>%
+    clean_names() %>%
+    rename(electorate = 1) %>%
+    dplyr::select(c(electorate, managers)) %>%
+    drop_na()
+  
   #-------------- Merge all together -----------------
   
   electorateDemographics <- prop_over_50 %>%
     left_join(families, by = c("electorate" = "electorate")) %>%
     left_join(householdincome, by = c("electorate" = "electorate")) %>%
-    left_join(overseas, by = c("electorate" = "electorate"))
+    left_join(overseas, by = c("electorate" = "electorate")) %>%
+    left_join(professionals, by = c("electorate" = "electorate"))
   
   return(electorateDemographics)
 }
 
-electorateDemographics <- grab_elec_dems(filepath = "olet5608/data/commonwealth electorate data.xls")
+electorateDemographics <- grab_elec_dems()
 
 # Merge into single dataframe
 
 electionData <- electorateData %>%
   left_join(electorateDemographics, by = c("electorate" = "electorate"))
+
+# Cleanup environment
+
+rm(electorateData, electorateDemographics, grab_elec_dems, grab_elec_votes)
