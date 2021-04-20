@@ -38,7 +38,7 @@ standardCentre <- function(x, log = FALSE){
 }
 
 electionDataScaled <- electionData %>%
-  mutate(median_weekly_household_income = rescale(median_weekly_household_income, to = c(0,1)), # Same range as proportion predictors
+  mutate(median_weekly_household_income_z = standardCentre(median_weekly_household_income, log = FALSE), # Same range as proportion predictors
          lnc_prepoll_percentage = lnc_prepoll_percentage/100) # Percentage to proportion to make similar to other predictors
 
 #----------------- Graph data ----------------
@@ -72,7 +72,7 @@ draw_plot <- function(data, cols){
          caption = "Source: Australian Electoral Commision and ABS.") +
     theme_bw() +
     theme(panel.grid.minor = element_blank()) +
-    facet_wrap(~covariates)
+    facet_wrap(~covariates, scales = "free_x")
   
   return(p)
 }
@@ -80,7 +80,7 @@ draw_plot <- function(data, cols){
 CairoPNG("olet5608/output/eda_scatter.png", 800, 600)
 p <- draw_plot(data = electionDataScaled, cols = c("lnc_prepoll_percentage", "prop_over_50", 
                                              "couple_family_with_children", "median_weekly_household_income", 
-                                             "born_overseas"))
+                                             "born_overseas", "managers"))
 print(p)
 dev.off()
 
@@ -91,7 +91,7 @@ dev.off()
 #-------------------
 
 m1 <- lm(lnc_ordinary_percentage ~ lnc_prepoll_percentage + prop_over_50 + couple_family_with_children + 
-          median_weekly_household_income + born_overseas, 
+          median_weekly_household_income_z + born_overseas + managers, 
         data = electionDataScaled)
 
 # Formal collinearity diagnostic using Variable Importance Factors
@@ -114,8 +114,8 @@ dev.off()
 #----------
 
 m2 <- gam(lnc_ordinary_percentage ~ s(lnc_prepoll_percentage) + s(prop_over_50) + s(couple_family_with_children) + 
-           s(median_weekly_household_income) + s(born_overseas), 
-         data = electionDataScaled)
+           s(median_weekly_household_income_z) + s(born_overseas) + s(managers), 
+         data = electionDataScaled, method = "REML")
 
 # Retrieve model summary
 
