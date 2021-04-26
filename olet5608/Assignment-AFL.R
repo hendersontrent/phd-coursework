@@ -16,9 +16,9 @@ library(fitzRoy)
 library(Cairo)
 
 # Pull AFL data for 2010-2019
-# NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD
-# Meaning the consistent home-and-away game style did not exist and may make it
-# a heterogenous season
+# NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
+# meaning the consistent home-and-away game style did not exist and may make it
+# heterogenous compared to previous seasons
 
 years <- c(seq(from = 2010, to = 2019, by = 1))
 store <- list()
@@ -69,7 +69,7 @@ aggregated <- all_seasons %>%
 
 # Rescaling
 
-#' Function to mean centre and standardise a numeric vector
+#' Function to mean centre and standardise a numeric vector with optional log transforms
 #' 
 #' @param x a vector of numeric values
 #' @param log a Boolean of whether to log-scale the vector or not. Defaults to FALSE
@@ -158,7 +158,7 @@ dev.off()
 # Correlation matrix
 #-------------------
 
-# NOTE: This multicollinearity is numerically tested below using Variance Inflation Factors
+# NOTE: Multicollinearity is numerically tested below using Variance Inflation Factors
 
 reducedMatrix <- aflScaled[,c(2:13)]
 
@@ -182,7 +182,7 @@ m <- lm(goals ~ ., data = aflScaled)
 # Multicollinearity
 #------------------
 
-olsrr::ols_vif_tol(m) # All values are close to 1 and lower than common thresholds, suggesting no issue
+olsrr::ols_vif_tol(m) # All values are close to 1 and far lower than common thresholds, suggesting no issue
 
 #-----------------------
 # Retrieve model summary
@@ -229,50 +229,3 @@ p1 <- aflScaled %>%
   facet_wrap(~covariates, scales = "free_x")
 print(p1)
 dev.off()
-
-#---------------- Alternate model --------------
-
-
-
-#-----------------
-# Diagnostic plots
-#-----------------
-
-
-
-
-
-
-
-
-
-#---------------- Alternate model --------------
-
-# Square root transform response to try to fix residuals
-# This follows advice on pp. 78 of Faraway J. J. (2014). Linear Models with R
-# who notes the appropriateness of a square root transformation for a count
-# response variable
-
-m1 <- lm(sqrt(goals) ~ ., data = aflScaled)
-
-#-----------------
-# Diagnostic plots
-#-----------------
-
-CairoPNG("olet5608/output/afl_lm_sqrt__diagnostics.png", 800, 600)
-par(mfrow = c(2, 2))
-plot(m1)
-dev.off()
-
-#---------------
-# Faraway checks
-#---------------
-
-cook <- cooks.distance(m)
-faraway::halfnorm(cook, 3)
-
-stud <- rstudent(m)
-stud[which.max(stud)]
-
-qqnorm(rstandard(m))
-abline(0,1)
