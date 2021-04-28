@@ -111,6 +111,21 @@ table1::table1(~ marks + handballs + hit_outs + tackles + rebounds + inside_50s 
                  clearances + clangers + frees_for + contested_possessions + contested_marks + marks_inside_50, 
                data = aggregated)
 
+#-----------------------
+# Variable distributions
+#-----------------------
+
+CairoPNG("olet5608/output/densities.png", 800, 600)
+aggregated %>%
+  pivot_longer(everything(), names_to = "names", values_to = "values") %>%
+  ggplot(aes(x = values)) +
+  geom_density(alpha = 0.5, fill = "#d95f02") +
+  labs(title = "Distribution of raw values for each variable",
+       x = "Value",
+       y = "Density") +
+  facet_wrap(~names, scales = "free_x")
+dev.off()
+
 #--------------------
 # Linear relationship
 #--------------------
@@ -147,11 +162,10 @@ draw_plot <- function(data, cols, y){
 }
 
 CairoPNG("olet5608/output/afl_scatter.png", 800, 600)
-p <- draw_plot(data = aflScaled, cols = c("marks", "handballs", "hit_outs", "tackles", 
+draw_plot(data = aflScaled, cols = c("marks", "handballs", "hit_outs", "tackles", 
                                           "rebounds", "inside_50s", "clearances", "clangers",
                                           "frees_for", "contested_possessions", "contested_marks",
                                           "marks_inside_50"), y = "goals")
-print(p)
 dev.off()
 
 #-------------------
@@ -161,8 +175,6 @@ dev.off()
 # NOTE: Multicollinearity is numerically tested below using Variance Inflation Factors
 
 reducedMatrix <- aflScaled[,c(2:13)]
-
-# Calculate correlation and produce graphic
 
 CairoPNG("olet5608/output/correlation_matrix.png", 800, 600)
 corr <- round(cor(reducedMatrix), 2)
@@ -196,6 +208,47 @@ sjPlot::tab_model(m,
                   show.se = TRUE,
                   collapse.se = TRUE, 
                   digits = 3)
+
+# Plot version
+
+coefs <- as.data.frame(coef(summary(m))) %>%
+  tibble::rownames_to_column()
+
+confints <- as.data.frame(confint(m)) %>%
+  tibble::rownames_to_column()
+
+coefs <- coefs %>%
+  left_join(confints, by = c("rowname" = "rowname")) %>%
+  rename(variable = rowname,
+         lower = 6,
+         upper = 7) %>%
+  filter(variable != "(Intercept)") %>%
+  mutate(category = case_when(
+         lower < 0 & upper < 0 ~ "Significant & Negative",
+         lower < 0 & upper > 0 ~ "Not Significant",
+         lower > 0 & upper > 0 ~ "Significant & Positive")) %>%
+  mutate(category = factor(category, levels = c("Significant & Negative", "Not Significant", "Significant & Positive")))
+
+mypal <- c("Significant & Negative" = "#f95d6a",
+           "Not Significant" = "#7D9DAC",
+           "Significant & Positive" = "#ffa600")
+
+CairoPNG("olet5608/output/afl_coefficients.png", 800, 600)
+coefs %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", size = 0.75, colour = "black") +
+  geom_segment(aes(x = variable, xend = variable, y = lower, yend = upper, colour = category), size = 1.65) +
+  geom_point(aes(x = reorder(variable, -Estimate), y = Estimate, colour = category), size = 3.5) +
+  labs(title = "Linear model coefficients and 95% confidence intervals",
+       x = "Variable",
+       y = "Coefficient Value",
+       colour = NULL) +
+  scale_colour_manual(values = mypal) +
+  scale_y_continuous(breaks = seq(from = -1, to = 2, by = 0.5)) +
+  coord_flip() +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
+dev.off()
 
 #-----------------
 # Diagnostic plots
