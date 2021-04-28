@@ -13,6 +13,7 @@ library(tidyr)
 library(ggplot2)
 library(janitor)
 library(fitzRoy)
+library(MASS)
 library(Cairo)
 
 # Pull AFL data for 2010-2019
@@ -135,11 +136,12 @@ dev.off()
 #' @param data a dataframe containing the variables to visualise
 #' @param cols a vector containing strings of column names to graph
 #' @param y a string denoting the response variable vector
+#' @param robust Boolean whether to use robust linear regression using M-estimator
 #' @return an object of class ggplot containing the graphic
 #' @author Trent Henderson
 #' 
 
-draw_plot <- function(data, cols, y){
+draw_plot <- function(data, cols, y, robust = FALSE){
   
   keepcols <- append(cols, y)
   
@@ -147,13 +149,23 @@ draw_plot <- function(data, cols, y){
     dplyr::select(keepcols) %>%
     pivot_longer(cols = cols, names_to = "covariates", values_to = "values")
   
-  p <- longer %>%
-    ggplot(aes(x = values, y = goals)) +
-    geom_point(alpha = 0.3, colour = "#003f5c") +
-    geom_smooth(aes(group = covariates), formula = y ~ x, method = "lm") +
-    labs(title = "Relationship between z-scored covariates and total goals kicked in AFL games",
-         subtitle = "Data is at the team and match level for all non-finals games in seasons 2010-2019 inclusive.",
-         x = "z-scored Predictor Value",
+  if(robust){
+    p <- longer %>%
+      ggplot(aes(x = values, y = goals)) +
+      geom_point(alpha = 0.3, colour = "#003f5c") +
+      geom_smooth(aes(group = covariates), formula = y ~ x, method = "rlm", method.args = list(method = "MM")) +
+      labs(title = "Outlier robust relationship between covariates and total goals kicked in AFL games")
+  } else{
+    p <- longer %>%
+      ggplot(aes(x = values, y = goals)) +
+      geom_point(alpha = 0.3, colour = "#003f5c") +
+      geom_smooth(aes(group = covariates), formula = y ~ x, method = "lm") +
+      labs(title = "Relationship between covariates and total goals kicked in AFL games")
+  }
+  
+  p <- p +
+    labs(subtitle = "Data is at the team and match level for all non-finals games in seasons 2010-2019 inclusive.",
+         x = "Predictor Value",
          y = "Total Goals per Team per Match",
          caption = "Data source: fitzRoy R package") +
     facet_wrap(~covariates, scales = "free_x")
@@ -162,10 +174,17 @@ draw_plot <- function(data, cols, y){
 }
 
 CairoPNG("olet5608/output/afl_scatter.png", 800, 600)
-draw_plot(data = aflScaled, cols = c("marks", "handballs", "hit_outs", "tackles", 
-                                          "rebounds", "inside_50s", "clearances", "clangers",
-                                          "frees_for", "contested_possessions", "contested_marks",
-                                          "marks_inside_50"), y = "goals")
+draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
+                                     "rebounds", "inside_50s", "clearances", "clangers",
+                                     "frees_for", "contested_possessions", "contested_marks",
+                                     "marks_inside_50"), y = "goals", robust = FALSE)
+dev.off()
+
+CairoPNG("olet5608/output/afl_scatter_robust.png", 800, 600)
+draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
+                                      "rebounds", "inside_50s", "clearances", "clangers",
+                                      "frees_for", "contested_possessions", "contested_marks",
+                                      "marks_inside_50"), y = "goals", robust = TRUE)
 dev.off()
 
 #-------------------
