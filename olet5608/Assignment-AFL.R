@@ -14,7 +14,10 @@ library(ggplot2)
 library(janitor)
 library(fitzRoy)
 library(MASS)
+library(mgcv)
+library(mgcViz)
 library(Cairo)
+library(ggfortify)
 
 # Pull AFL data for 2010-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
@@ -120,7 +123,7 @@ CairoPNG("olet5608/output/densities.png", 800, 600)
 aggregated %>%
   pivot_longer(everything(), names_to = "names", values_to = "values") %>%
   ggplot(aes(x = values)) +
-  geom_density(alpha = 0.5, fill = "#d95f02") +
+  geom_density(alpha = 0.6, fill = "#d95f02") +
   labs(title = "Distribution of raw values for each variable",
        x = "Value",
        y = "Density") +
@@ -280,24 +283,73 @@ par(mfrow = c(2, 2))
 plot(m)
 dev.off()
 
-# By predictor
+CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
+autoplot(m, which = 1:4)
+dev.off()
 
-covariate_list <- c("marks", "handballs", "hit_outs", "tackles", 
-                    "rebounds", "inside_50s", "clearances", "clangers",
-                    "frees_for", "contested_possessions", "contested_marks",
-                    "marks_inside_50")
-  
-CairoPNG("olet5608/output/afl_residuals.png", 800, 600)
-p1 <- aflScaled %>%
-  mutate(residuals = m$residuals) %>%
-  dplyr::select(covariate_list, residuals) %>%
-  pivot_longer(cols = covariate_list, names_to = "covariates", values_to = "values") %>%
-  ggplot(aes(x = values, y = residuals)) +
-  geom_point(alpha = 0.3, colour = "#003f5c") +
-  geom_hline(aes(yintercept = 0), colour = "red") +
-  labs(title = "Residuals plots for each predictor",
-       x = "z-scored Predictor Value",
-       y = "Residuals") +
-  facet_wrap(~covariates, scales = "free_x")
-print(p1)
+# Square root epsilon of residuals
+
+CairoPNG("olet5608/output/sqrt_epsilon.png", 800, 600)
+plot(fitted(m), sqrt(abs(residuals(m))), xlab = "Fitted", ylab = expression(sqrt(hat(epsilon))))
+dev.off()
+
+# Shapiro-Wilk for normality
+
+shapiro.test(residuals(m))
+
+#------------------
+# Outlier detection
+#------------------
+
+# Calculate residuals on distribution
+
+stud <- rstudent(m)
+
+# Retrieve maximum residual
+
+max_resid <- stud[which.max(abs(stud))]
+
+# Compare maximum residual to Bonferroni-corrected critical value
+# Procedure = alpha/2 (for two-sided test), n-p (df)
+
+abs(qt(.05/(length(stud)*2), nrow(aflScaled)-ncol(aflScaled))) # Maximum doesn't exceed, so not worth doing p-values
+
+#---------------- Alternate models -------------
+
+#------------------
+# Robust regression
+#------------------
+
+m2 <- rlm(goals ~ ., data = aflScaled)
+
+# Look at range of weights (if close to 1, then OLS and robust results will be similar)
+
+range(m2$w)
+
+#---------------------------
+# Generalised additive model
+#---------------------------
+
+gamformula <- as.formula(paste("goals ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
+gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
+
+# Model outputs
+
+summary(gam_mod)
+
+# Diagnostic plots
+
+CairoPNG("olet5608/output/gamDiagnostics.png", 800, 600)
+viz <- getViz(gam_mod)
+check(viz,
+      gam_mod.qq = list(method = "tnorm", 
+                        gam_mod.cipoly = list(fill = "light blue")), 
+      gam_mod.respoi = list(size = 0.5), 
+      gam_mod.hist = list(bins = 10))
+dev.off()
+
+# Predictor smooth plots
+
+CairoPNG("olet5608/output/gamOutputs.png", 800, 600)
+gratia::draw(gam_mod)
 dev.off()
