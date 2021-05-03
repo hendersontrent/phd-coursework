@@ -1,0 +1,425 @@
+---
+title: A linear modelling exploration of goal scoring in the AFL
+authors:
+  - name: Trent Henderson
+    affiliation: OLET5608
+    email: then6675@uni.sydney.edu.au
+abstract: |
+  Enter the text of your abstract here.
+bibliography: references.bib
+biblio-style: unsrt
+output: 
+  rticles::arxiv_article:
+    keep_tex: true
+---
+
+\setlength{\abovedisplayskip}{-15pt}
+\setlength{\belowdisplayskip}{0pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{0pt}
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(janitor)
+library(fitzRoy)
+library(MASS)
+library(mgcv)
+library(mgcViz)
+library(Cairo)
+library(ggfortify)
+library(xtable)
+library(parameters)
+
+# Pull AFL data for 2010-2019
+# NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
+# meaning the consistent home-and-away game style did not exist and may make it
+# heterogenous compared to previous seasons
+
+years <- c(seq(from = 2010, to = 2019, by = 1))
+store <- list()
+
+for(i in years){
+  
+  start_date <- as.character(paste0(i,"-01-01"))
+  end_date <- as.character(paste0(i,"-12-01"))
+  
+  tmp <- get_afltables_stats(start_date = start_date, end_date = end_date) %>%
+    clean_names() %>%
+    mutate(season = gsub("-.*", "\\1", date),
+           season = as.numeric(season))
+  
+  store[[i]] <- tmp
+}
+
+all_seasons <- data.table::rbindlist(store, use.names = TRUE)
+
+# Removes finals as these matches are likely very different to season games and might bias analysis
+
+the_finals <- c("EF", "SF", "QF", "PF", "GF")
+'%ni%' <- Negate('%in%')
+```
+
+# Introduction
+
+AFL is a highly popular Australian sports league that began in 1896 and continues strongly today, with Grand Final match attendance (outside of the anomalous COID-19-impacted 2020 season) approximating a sold out 100,000 each year at the traditional host venue - the Melbourne Cricket Ground. An AFL match is won based on points, which can be accumulated by kicking either a goal (worth six points) or a behind (worth one point). Given the relative importance of goals-to-behinds and the rapid rise of advanced analytics in sport, many, if not all, AFL teams are interested in how they can score more goals.
+
+Moreover, this pursuit of knowledge extends far past teams and players. Websites such as FiveThirtyEight and Advanced Sports Analytics have created a reliable source of insight and interactive analysis that only continue to rise in popularity and sophistication. However, this form of innovative and detailed sports analytics has yet to fully breach Australian sports. While the AFL has dedicated talk show analysis television programs such as AFL 360, The Front Bar, and Talking Footy, these programs focus mostly on qualitative breakdowns of high-level match statistics and not on statistical rigour. This report aims to bridge some of this gap by providing a preliminary statistical investigation of goal scoring in the AFL.
+
+## The importance of kicking goals
+
+As described above, goals are worth six points in AFL, meaning most offensive activity is conducted so as to increase the likelihood and number of goals that are scored. Their contribution to the probability of a team winning a match is substantial, as highlighted by **FIGURE 1** below, where a match outcome of 1 = win and 0 = loss. The plot visualises the outputs of a logistic regression where the number of goals scored by a team for a given match was used as a predictor of binary match outcome (win versus loss). The number of goals scored was statistically significant, such that for every one unit increase in goals scored by a team, the odds of winning the match increase by 1.07 (*p* <.001, 95% confidence interval = 1.07-1.08). The case for a team focusing their efforts on scoring more goals is evident.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 5, fig.height = 3}
+plot_logit <- function(){
+  # Aggregate over each team and match for some key variables of interest
+
+tmp1 <- all_seasons %>%
+  filter(round %ni% the_finals) %>%
+  mutate(winner = case_when(
+    home_score > away_score ~ home_team,
+    away_score > home_score ~ away_team,
+    TRUE                    ~ "Remove")) %>%
+  filter(winner != "Remove") %>%
+  mutate(did_i_win = case_when(
+    playing_for == winner ~ 1,
+    TRUE                  ~ 0)) %>%
+  mutate(round = as.numeric(round)) %>%
+  group_by(season, round, did_i_win, playing_for) %>%
+  summarise(goals = sum(goals)) %>%
+  ungroup()
+
+#---------------- Data visualisation -----------
+
+# Fit statistical model
+
+m <- glm(did_i_win ~ goals, data = tmp1)
+summary(m)
+
+# Extract log odds for coefficient (and 95% CI) and exponentiate to get odds
+
+odds <- round(as.numeric(exp(m$coefficients)[2]), digits = 2)
+confints <- confint(m)[2,]
+
+# Draw plot
+
+p <- tmp1 %>%
+  ggplot(aes(x = goals, y = did_i_win)) +
+  geom_smooth(method = "glm", 
+              method.args = list(family = "binomial")) +
+  geom_jitter(alpha = 0.2, height = 0, width = 0.5, colour = "#003f5c") + # To make each point a little more visible
+  labs(title = "Relationship between goals scored and match outcome",
+       subtitle = paste0("For every one unit increase in goals scored, the odds of winning increase by ",odds," (95% CI = ",round(exp(confints[1]), digits = 2),"-",round(exp(confints[2]), digits = 2),", p < .001)"),
+       x = "Goals Scored",
+       y = "Match Outcome (0 = loss, 1 = win)") +
+  scale_y_continuous(limits = c(0,1),
+                     breaks = c(0,1))
+return(p)
+}
+
+plot_logit()
+```
+
+However, as is the case with most high-level sport, winning games is not as simple as *just* kicking more goals. There are sometimes long sequences of free-form and contested play that precede a goal being kicked that can be hard to directly influence through coaching interventions based off the notion of *as a team we need to kick more goals*. Instead, understanding the correlates and predictors of goal scoring using a data-driven approach may reveal subtle nuances in gameplay which could be used to tailor training and coaching approaches. At an even more granular level, differences in how these different gameplay attributes manifest for specific teams may lead to different recommendations.
+
+Specifically, this report aims to explore the following research question: *Which gameplay attributes are predictors of the number of goals scored by teams in AFL matches?*
+
+# Data set
+
+Historical AFL data has been made readily-accessible in an open-source setting through the R package `fitzRoy` [see @fitzRoy]. The package provides a simple API that accesses and integrates a range of data sources that collate AFL data. Examples of these sources include:
+
+\begin{itemize}
+  \item{AFL}
+  \item{AFL Tables}
+  \item{Squiggle}
+  \item{FootyWire}
+\end{itemize}
+
+The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2010-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this, where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19 This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
+
+A small subset of variables were retained from the broader dataset. The subset was developed based on the author's subject matter expertise of the sport of AFL, with additional consideration given to not wanting to specify an overly complex model. The variables retained were selected based on their likely relationship to a team's goal scoring and whether a team could change their gameplay to better target these predictors. For example, the variable *free kicks against* was not included, as the number of free kicks given away by a team is not a core contributor to the same team scoring goals.
+
+The variables that were retained for the purposes of this analysis included team-match-level counts of goals, marks, handballs, hit outs, tackles, rebounds, inside 50s, clearances, clangers, free kicks for, contested possessions, contested marks, and marks inside 50.
+
+# Analysis
+
+A rigorous and detailed linear modelling pipeline was implemented. This involved the following steps:
+
+1. Exploratory data analysis and preprocessing
+3. Model fitting
+4. Model assumption testing
+5. Model re-specification (if required)
+6. Model interpretation
+7. Preliminary advanced model exploration
+
+## Exploratory data analysis and visualisation
+
+Prior to modelling, the data were explored visually and numerically to understand the empirical structure. **FIGURE X** below shows the distributions of each quantitative variable.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+# Aggregate over each team and match for some key variables of interest
+
+aggregated <- all_seasons %>%
+  filter(round %ni% the_finals) %>%
+  mutate(round = as.numeric(round)) %>%
+  group_by(season, round, playing_for) %>%
+  summarise(goals = sum(goals),
+            marks = sum(marks),
+            handballs = sum(handballs),
+            hit_outs = sum(hit_outs),
+            tackles = sum(tackles),
+            rebounds = sum(rebounds),
+            inside_50s = sum(inside_50s),
+            clearances = sum(clearances),
+            clangers = sum(clangers),
+            frees_for = sum(frees_for),
+            contested_possessions = sum(contested_possessions),
+            contested_marks = sum(contested_marks),
+            marks_inside_50 = sum(marks_inside_50)) %>%
+  ungroup() %>%
+  dplyr::select(-c(season, round, playing_for))
+
+# Rescaling
+
+#' Function to mean centre and standardise a numeric vector with optional log transforms
+#' 
+#' @param x a vector of numeric values
+#' @param log a Boolean of whether to log-scale the vector or not. Defaults to FALSE
+#' @return a vector of length(x)
+#' @author Trent Henderson
+#' 
+
+standardCentre <- function(x, log = FALSE){
+  
+  if(log){
+    x <- (log(x)-mean(log(x), na.rm = TRUE))/sd(log(x), na.rm = TRUE)
+  } else{
+    x <- (x-mean(x, na.rm = TRUE))/sd(x, na.rm = TRUE)
+  }
+  return(x)
+}
+
+aflScaled <- aggregated %>%
+  mutate(marks = standardCentre(marks, log = FALSE),
+         handballs = standardCentre(handballs, log = FALSE),
+         hit_outs = standardCentre(hit_outs, log = FALSE),
+         tackles = standardCentre(tackles, log = FALSE),
+         rebounds = standardCentre(rebounds, log = FALSE),
+         inside_50s = standardCentre(inside_50s, log = FALSE),
+         clearances = standardCentre(clearances, log = FALSE),
+         clangers = standardCentre(clangers, log = FALSE),
+         frees_for = standardCentre(frees_for, log = FALSE),
+         contested_possessions = standardCentre(contested_possessions, log = FALSE),
+         contested_marks = standardCentre(contested_marks, log = FALSE),
+         marks_inside_50 = standardCentre(marks_inside_50, log = FALSE))
+```
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+aggregated %>%
+  pivot_longer(everything(), names_to = "names", values_to = "values") %>%
+  ggplot(aes(x = values)) +
+  geom_density(alpha = 0.6, fill = "#d95f02") +
+  labs(title = "Distribution of raw values for each variable",
+       x = "Value",
+       y = "Density") +
+  facet_wrap(~names, scales = "free_x")
+```
+
+The data were further explored using high-level summary statistics. These are presented below in **FIGURE XX**. Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
+xtable(summarize(aggregated, type = "numeric"))
+```
+
+## Model fitting
+
+
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+m <- lm(goals ~ ., data = aflScaled)
+```
+
+## Model assumption testing
+
+There are four core assumptions of linear regression model [see @R:Faraway:2004]. These include:
+
+1. Linear relationship between `X` and `y`
+2. Independent observations
+2. Homogeneity of variance
+4. Normality of residuals
+
+Since it is known that the data used for this report as independent observations, the following sections will focus on reporting the testing of the other assumptions.
+
+### Assumption 1: Linear relationship
+
+The purpose of a linear model is to understand the relationship between some number of predictors and a quantitative response variable. As such, a linear model at its core assumes that all predictors are related linearly to the response variable.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+#' Function to produce raw scatterplot with smoothed trendline for all covariates
+#' 
+#' @param data a dataframe containing the variables to visualise
+#' @param cols a vector containing strings of column names to graph
+#' @param y a string denoting the response variable vector
+#' @param robust Boolean whether to use robust linear regression using M-estimator
+#' @return an object of class ggplot containing the graphic
+#' @author Trent Henderson
+#' 
+
+draw_plot <- function(data, cols, y, robust = FALSE){
+  
+  keepcols <- append(cols, y)
+  
+  longer <- data %>%
+    dplyr::select(keepcols) %>%
+    pivot_longer(cols = cols, names_to = "covariates", values_to = "values")
+  
+  if(robust){
+    p <- longer %>%
+      ggplot(aes(x = values, y = goals)) +
+      geom_point(alpha = 0.3, colour = "#003f5c") +
+      geom_smooth(aes(group = covariates), formula = y ~ x, method = "rlm", method.args = list(method = "MM")) +
+      labs(title = "Outlier robust relationship between covariates and total goals kicked in AFL games")
+  } else{
+    p <- longer %>%
+      ggplot(aes(x = values, y = goals)) +
+      geom_point(alpha = 0.3, colour = "#003f5c") +
+      geom_smooth(aes(group = covariates), formula = y ~ x, method = "lm") +
+      labs(title = "Relationship between covariates and total goals kicked in AFL games")
+  }
+  
+  p <- p +
+    labs(x = "Predictor Value",
+         y = "Total Goals per Team per Match",
+         caption = "Data source: fitzRoy R package") +
+    facet_wrap(~covariates, scales = "free_x")
+  
+  return(p)
+}
+
+# Draw graphic
+
+draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
+                                     "rebounds", "inside_50s", "clearances", "clangers",
+                                     "frees_for", "contested_possessions", "contested_marks",
+                                     "marks_inside_50"), y = "goals", robust = FALSE)
+```
+
+A secondary visual test was conducted with a robust regression (using M-estimation) as the plots above appeared to contain some potential leverage points or outliers. The robust version of the plot is depicted below in **FIGURE X**. With almost no visual difference between the standard linear and the robust lienar approaches, the standard linear model was taken forward.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
+                                      "rebounds", "inside_50s", "clearances", "clangers",
+                                      "frees_for", "contested_possessions", "contested_marks",
+                                      "marks_inside_50"), y = "goals", robust = TRUE)
+```
+
+While all variables were still being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below. Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+print(olsrr::ols_vif_tol(m))
+```
+
+### Assumption 2: Homogeneity of variance
+
+
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+autoplot(m, which = 1:4)
+```
+
+### Assumption 3: Normality of residuals
+
+
+
+## Preliminary advanced model exploration
+
+One other model was fit in addition to the standard linear model - a generalised additive model (GAM) [see @10.1214/ss/1177013604]. GAMs further generalise the commonly-used generalised linear model (GLM) to accommodate immensely powerful flexibility and potential to model non-linearities. GAMs achieve this through the use of splines and basis functions whose number is specified by a knot parameter, and who are connected by polynomials. GAMs essentially enable the fitting of wiggly functions over the data. The basic form of a GAM can be written as follows, where the predictors are still entered linearly, but they are instead modelled using some unknown smooth functions:
+
+$$
+y_i = \beta_0 + f_1(x_i) + f_2(x_i)... + f_n(x_n) + \epsilon_i
+$$
+
+Where $\epsilon$ is (in the standard linear modelling case) Gaussian noise $\mathcal{N}(\mu,\sigma^2)$, specified by its mean and standard deviation. Of course, similar to GLMs, this Gaussian noise assumption is generalised to other probability distributions, though these are not the considered in this report. The GAM for this report was fit in `R` using the `mgcv` package [see @mgcv]. It was fit using Restricted Maximum Likelihood for reduced-rank model parameter estimation, as per advice by Wood [see @wood].
+
+### Model assumption testing
+
+Similar to the standard linear model, core assumptions still need to hold for the GAM. These were also tested, with a summary output presented below in **FIGURE 1** generated by the `R` package `mgcViz` [see @mgcViz].
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'hide', fig.keep = TRUE, fig.width = 6, fig.height = 4}
+thecols <- colnames(aflScaled)[-1]
+gamformula <- as.formula(paste("goals ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
+gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
+
+# Diagnostic plots
+
+viz <- getViz(gam_mod)
+check(viz,
+      gam_mod.qq = list(method = "tnorm", 
+                        gam_mod.cipoly = list(fill = "light blue")), 
+      gam_mod.respoi = list(size = 0.5), 
+      gam_mod.hist = list(bins = 10))
+```
+
+# Results
+
+## Linear model
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 3}
+coefs <- as.data.frame(coef(summary(m))) %>%
+  tibble::rownames_to_column()
+
+confints <- as.data.frame(confint(m)) %>%
+  tibble::rownames_to_column()
+
+coefs <- coefs %>%
+  left_join(confints, by = c("rowname" = "rowname")) %>%
+  rename(variable = rowname,
+         lower = 6,
+         upper = 7) %>%
+  filter(variable != "(Intercept)") %>%
+  mutate(category = case_when(
+         lower < 0 & upper < 0 ~ "Significant & Negative",
+         lower < 0 & upper > 0 ~ "Not Significant",
+         lower > 0 & upper > 0 ~ "Significant & Positive")) %>%
+  mutate(category = factor(category, levels = c("Significant & Negative", "Not Significant", "Significant & Positive")))
+
+mypal <- c("Significant & Negative" = "#f95d6a",
+           "Not Significant" = "#7D9DAC",
+           "Significant & Positive" = "#ffa600")
+
+coefs %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", size = 0.75, colour = "black") +
+  geom_segment(aes(x = variable, xend = variable, y = lower, yend = upper, colour = category), size = 1.65) +
+  geom_point(aes(x = reorder(variable, -Estimate), y = Estimate, colour = category), size = 3.5) +
+  labs(title = "Linear model coefficients and 95% confidence intervals",
+       x = "Variable",
+       y = "Coefficient Value",
+       colour = NULL) +
+  scale_colour_manual(values = mypal) +
+  scale_y_continuous(breaks = seq(from = -1, to = 2, by = 0.5)) +
+  coord_flip() +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
+```
+
+A numerical exploration of coefficients is presented below. This table also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 370.77 (*df* = 12; 3879), and explains approximately 53.4% of the observed variance in goals scored.
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
+stargazer::stargazer(m, header = FALSE)
+```
+
+## GAM
+
+XX
+
+```{r gam-smooths, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+gratia::draw(gam_mod)
+```
+
+# Discussion
+
+
+
+# References
