@@ -1,5 +1,5 @@
 ---
-title: A linear modelling exploration of goal scoring in the AFL
+title: A linear modelling exploration of predictors of scores in the AFL
 authors:
   - name: Trent Henderson
     affiliation: OLET5608
@@ -12,11 +12,6 @@ output:
   rticles::arxiv_article:
     keep_tex: true
 ---
-
-\setlength{\abovedisplayskip}{-15pt}
-\setlength{\belowdisplayskip}{0pt}
-\setlength{\abovedisplayshortskip}{0pt}
-\setlength{\belowdisplayshortskip}{0pt}
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 library(dplyr)
@@ -32,12 +27,12 @@ library(ggfortify)
 library(xtable)
 library(parameters)
 
-# Pull AFL data for 2010-2019
+# Pull AFL data for 2005-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
 # meaning the consistent home-and-away game style did not exist and may make it
 # heterogenous compared to previous seasons
 
-years <- c(seq(from = 2010, to = 2019, by = 1))
+years <- c(seq(from = 2005, to = 2019, by = 1))
 store <- list()
 
 for(i in years){
@@ -63,67 +58,11 @@ the_finals <- c("EF", "SF", "QF", "PF", "GF")
 
 # Introduction
 
-AFL is a highly popular Australian sports league that began in 1896 and continues strongly today, with Grand Final match attendance (outside of the anomalous COID-19-impacted 2020 season) approximating a sold out 100,000 each year at the traditional host venue - the Melbourne Cricket Ground. An AFL match is won based on points, which can be accumulated by kicking either a goal (worth six points) or a behind (worth one point). Given the relative importance of goals-to-behinds and the rapid rise of advanced analytics in sport, many, if not all, AFL teams are interested in how they can score more goals.
+AFL is a highly popular Australian sports league that began in 1896 and continues strongly today, with Grand Final match attendance (outside of the anomalous COID-19-impacted 2020 season) approximating a sold out 100,000 each year at the traditional host venue - the Melbourne Cricket Ground. An AFL match is won based on points, which can be accumulated by kicking either a goal (worth six points) or a behind (worth one point).
 
 Moreover, this pursuit of knowledge extends far past teams and players. Websites such as FiveThirtyEight and Advanced Sports Analytics have created a reliable source of insight and interactive analysis that only continue to rise in popularity and sophistication. However, this form of innovative and detailed sports analytics has yet to fully breach Australian sports. While the AFL has dedicated talk show analysis television programs such as AFL 360, The Front Bar, and Talking Footy, these programs focus mostly on qualitative breakdowns of high-level match statistics and not on statistical rigour. This report aims to bridge some of this gap by providing a preliminary statistical investigation of goal scoring in the AFL.
 
-## The importance of kicking goals
-
-As described above, goals are worth six points in AFL, meaning most offensive activity is conducted so as to increase the likelihood and number of goals that are scored. Their contribution to the probability of a team winning a match is substantial, as highlighted by **FIGURE 1** below, where a match outcome of 1 = win and 0 = loss. The plot visualises the outputs of a logistic regression where the number of goals scored by a team for a given match was used as a predictor of binary match outcome (win versus loss). The number of goals scored was statistically significant, such that for every one unit increase in goals scored by a team, the odds of winning the match increase by 1.07 (*p* <.001, 95% confidence interval = 1.07-1.08). The case for a team focusing their efforts on scoring more goals is evident.
-
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 5, fig.height = 3}
-plot_logit <- function(){
-  # Aggregate over each team and match for some key variables of interest
-
-tmp1 <- all_seasons %>%
-  filter(round %ni% the_finals) %>%
-  mutate(winner = case_when(
-    home_score > away_score ~ home_team,
-    away_score > home_score ~ away_team,
-    TRUE                    ~ "Remove")) %>%
-  filter(winner != "Remove") %>%
-  mutate(did_i_win = case_when(
-    playing_for == winner ~ 1,
-    TRUE                  ~ 0)) %>%
-  mutate(round = as.numeric(round)) %>%
-  group_by(season, round, did_i_win, playing_for) %>%
-  summarise(goals = sum(goals)) %>%
-  ungroup()
-
-#---------------- Data visualisation -----------
-
-# Fit statistical model
-
-m <- glm(did_i_win ~ goals, data = tmp1)
-summary(m)
-
-# Extract log odds for coefficient (and 95% CI) and exponentiate to get odds
-
-odds <- round(as.numeric(exp(m$coefficients)[2]), digits = 2)
-confints <- confint(m)[2,]
-
-# Draw plot
-
-p <- tmp1 %>%
-  ggplot(aes(x = goals, y = did_i_win)) +
-  geom_smooth(method = "glm", 
-              method.args = list(family = "binomial")) +
-  geom_jitter(alpha = 0.2, height = 0, width = 0.5, colour = "#003f5c") + # To make each point a little more visible
-  labs(title = "Relationship between goals scored and match outcome",
-       subtitle = paste0("For every one unit increase in goals scored, the odds of winning increase by ",odds," (95% CI = ",round(exp(confints[1]), digits = 2),"-",round(exp(confints[2]), digits = 2),", p < .001)"),
-       x = "Goals Scored",
-       y = "Match Outcome (0 = loss, 1 = win)") +
-  scale_y_continuous(limits = c(0,1),
-                     breaks = c(0,1))
-return(p)
-}
-
-plot_logit()
-```
-
-However, as is the case with most high-level sport, winning games is not as simple as *just* kicking more goals. There are sometimes long sequences of free-form and contested play that precede a goal being kicked that can be hard to directly influence through coaching interventions based off the notion of *as a team we need to kick more goals*. Instead, understanding the correlates and predictors of goal scoring using a data-driven approach may reveal subtle nuances in gameplay which could be used to tailor training and coaching approaches. At an even more granular level, differences in how these different gameplay attributes manifest for specific teams may lead to different recommendations.
-
-Specifically, this report aims to explore the following research question: *Which gameplay attributes are predictors of the number of goals scored by teams in AFL matches?*
+Specifically, this report aims to explore the following research question: *Which gameplay attributes are predictors of scores in AFL matches?*
 
 # Data set
 
@@ -136,11 +75,17 @@ Historical AFL data has been made readily-accessible in an open-source setting t
   \item{FootyWire}
 \end{itemize}
 
-The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2010-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this, where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19 This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
+The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2005-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this, where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19 This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
 
-A small subset of variables were retained from the broader dataset. The subset was developed based on the author's subject matter expertise of the sport of AFL, with additional consideration given to not wanting to specify an overly complex model. The variables retained were selected based on their likely relationship to a team's goal scoring and whether a team could change their gameplay to better target these predictors. For example, the variable *free kicks against* was not included, as the number of free kicks given away by a team is not a core contributor to the same team scoring goals.
+## Data limitations
 
-The variables that were retained for the purposes of this analysis included team-match-level counts of goals, marks, handballs, hit outs, tackles, rebounds, inside 50s, clearances, clangers, free kicks for, contested possessions, contested marks, and marks inside 50.
+Despite the availability of so much player-level data, the author of the `fitzRoy` package and the creators of the sources it pulls from listed above all note potential caveats around their data. **EXPLAIN CAVEATS HERE**
+
+## Variable retention
+
+A small subset of variables were retained from the broader dataset. The subset was developed based on the author's subject matter expertise of AFL. The variables retained were selected based on their likely relationship to a team's ability to score and whether a team could implement a training or coaching intervention off the back of this analysis to better target the predictors. For example, the variable *free kicks against* was not included, as the number of free kicks given away by a team is not a core contributor to the same team scoring, and it is likely near impossible to coach out of the game.
+
+The variables that were retained for the purposes of this analysis included team-match-level counts of scores, marks, handballs, hit outs, tackles, rebounds, inside 50s, clearances, clangers, free kicks for, contested possessions, contested marks, and marks inside 50.
 
 # Analysis
 
@@ -163,8 +108,9 @@ Prior to modelling, the data were explored visually and numerically to understan
 aggregated <- all_seasons %>%
   filter(round %ni% the_finals) %>%
   mutate(round = as.numeric(round)) %>%
+  mutate(score = ifelse(playing_for == home_team, home_score, away_score)) %>%
   group_by(season, round, playing_for) %>%
-  summarise(goals = sum(goals),
+  summarise(score = mean(score),
             marks = sum(marks),
             handballs = sum(handballs),
             hit_outs = sum(hit_outs),
@@ -218,8 +164,8 @@ aflScaled <- aggregated %>%
 ```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
 aggregated %>%
   pivot_longer(everything(), names_to = "names", values_to = "values") %>%
-  ggplot(aes(x = values)) +
-  geom_density(alpha = 0.6, fill = "#d95f02") +
+  ggplot(aes(x = values, y = ..density..)) +
+  geom_histogram(alpha = 0.6, fill = "#d95f02", binwidth = 2) +
   labs(title = "Distribution of raw values for each variable",
        x = "Value",
        y = "Density") +
@@ -237,7 +183,7 @@ xtable(summarize(aggregated, type = "numeric"))
 
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
-m <- lm(goals ~ ., data = aflScaled)
+m <- lm(score ~ ., data = aflScaled)
 ```
 
 ## Model assumption testing
@@ -314,7 +260,7 @@ draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles
                                       "marks_inside_50"), y = "goals", robust = TRUE)
 ```
 
-While all variables were still being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below. Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
+While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [see @multi1]. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below. Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 print(olsrr::ols_vif_tol(m))
@@ -322,7 +268,7 @@ print(olsrr::ols_vif_tol(m))
 
 ### Assumption 2: Homogeneity of variance
 
-
+Homoegeneity of variance - the lack of a systematic pattern or bias of residuals across model fitted or predictor values - is another core linear model assumption. This assumption is typically assessed graphically using a residuals plot, where fitted values are plotted against model residuals. A model with homogeneity of variance should have no discernible pattern across the fitted values. This plot is depicted in the upper left in the graphics matrix below.
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
 autoplot(m, which = 1:4)
@@ -330,7 +276,7 @@ autoplot(m, which = 1:4)
 
 ### Assumption 3: Normality of residuals
 
-
+Normality of residuals is typially assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented above. A model with normally-distributed residuals should lie directly on the diagonal line. 
 
 ## Preliminary advanced model exploration
 

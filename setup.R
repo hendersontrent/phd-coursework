@@ -9,5 +9,4 @@
 #---------------------------------------
 
 if(!dir.exists('olet5608')) dir.create('olet5608')
-if(!dir.exists('olet5608/data')) dir.create('olet5608/data')
 if(!dir.exists('olet5608/output')) dir.create('olet5608/output')
