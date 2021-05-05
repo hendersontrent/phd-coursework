@@ -195,7 +195,7 @@ There are four core assumptions of linear regression model [see @R:Faraway:2004]
 2. Homogeneity of variance
 4. Normality of residuals
 
-Since it is known that the data used for this report as independent observations, the following sections will focus on reporting the testing of the other assumptions.
+Since it is known that the data used for this report are independent observations, the following sections will focus on reporting the testing of the other assumptions.
 
 ### Assumption 1: Linear relationship
 
@@ -248,17 +248,10 @@ draw_plot <- function(data, cols, y, robust = FALSE){
 draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
                                      "rebounds", "inside_50s", "clearances", "clangers",
                                      "frees_for", "contested_possessions", "contested_marks",
-                                     "marks_inside_50"), y = "goals", robust = FALSE)
+                                     "marks_inside_50"), y = "score", robust = FALSE)
 ```
 
-A secondary visual test was conducted with a robust regression (using M-estimation) as the plots above appeared to contain some potential leverage points or outliers. The robust version of the plot is depicted below in **FIGURE X**. With almost no visual difference between the standard linear and the robust lienar approaches, the standard linear model was taken forward.
-
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
-draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
-                                      "rebounds", "inside_50s", "clearances", "clangers",
-                                      "frees_for", "contested_possessions", "contested_marks",
-                                      "marks_inside_50"), y = "goals", robust = TRUE)
-```
+A secondary visual test was conducted with a robust regression (using M-estimation) as the plots above appeared to contain some potential leverage points or outliers. The plot has been omitted for space, however there was almost no visual difference between the standard linear and the robust linear approaches.
 
 While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [see @multi1]. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below. Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
 
@@ -274,13 +267,15 @@ Homoegeneity of variance - the lack of a systematic pattern or bias of residuals
 autoplot(m, which = 1:4)
 ```
 
+Evidently, there is a slight sag in the line through this plot, indicating potential heteroscedasticity. It was first hypothesised that potential outliers might be influencing the results, despite the lack of compelling visual evidence based on the Cook's Distance plot. Following advice from [@R:Faraway:2004], a test of the maximum studentised residual value against a Bonferroni-corrected critical value. Since the maximum residual value of 4.14 was less than the critical value of 4.45, it was declared that outliers were not a major issue.
+
 ### Assumption 3: Normality of residuals
 
-Normality of residuals is typially assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented above. A model with normally-distributed residuals should lie directly on the diagonal line. 
+Normality of residuals is typially assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented above. A model with normally-distributed residuals should lie directly on the diagonal line. The residuals are almost entirely positioned on the line with very little variation at the ends indicating no issues with normality.
 
 ## Preliminary advanced model exploration
 
-One other model was fit in addition to the standard linear model - a generalised additive model (GAM) [see @10.1214/ss/1177013604]. GAMs further generalise the commonly-used generalised linear model (GLM) to accommodate immensely powerful flexibility and potential to model non-linearities. GAMs achieve this through the use of splines and basis functions whose number is specified by a knot parameter, and who are connected by polynomials. GAMs essentially enable the fitting of wiggly functions over the data. The basic form of a GAM can be written as follows, where the predictors are still entered linearly, but they are instead modelled using some unknown smooth functions:
+One other model was fit in addition to the standard linear model - a generalised additive model (GAM) [see @10.1214/ss/1177013604]. GAMs further generalise the commonly-used generalised linear model (GLM) to accommodate immensely powerful flexibility and potential to model non-linearities. GAMs achieve this through the use of splines and basis functions whose number is specified by a knot parameter, and who are connected by polynomials. GAMs essentially enable the fitting of wiggly functions over the data with parameter optimisation. The basic form of a GAM can be written as follows, where the predictors are still entered linearly, but they are instead modelled using some unknown smooth functions:
 
 $$
 y_i = \beta_0 + f_1(x_i) + f_2(x_i)... + f_n(x_n) + \epsilon_i
