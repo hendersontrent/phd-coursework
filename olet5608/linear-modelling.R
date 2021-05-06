@@ -19,6 +19,8 @@ library(mgcv)
 library(mgcViz)
 library(Cairo)
 library(ggfortify)
+library(lmtest)
+library(sandwich)
 
 # Pull AFL data for 2005-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
@@ -207,11 +209,30 @@ dev.off()
 
 #---------------- Model outputs ----------------
 
-#----------
-# Fit model
-#----------
+#-----------
+# Fit models
+#-----------
+
+# Base OLS model
 
 m <- lm(score ~ ., data = aflScaled)
+
+# Square-root transformed response
+
+m1 <- lm(sqrt(score) ~ ., data = aflScaled)
+
+# Weighted OLS
+
+wt <- 1 / lm(abs(m$residuals) ~ m$fitted.values)$fitted.values^2
+m2 <- lm(score ~ ., weights = wt, data = aflScaled)
+
+# Heteroscedastic-robust standard errors of base OLS
+
+lmtest::bptest(m) # Breush-Pagan test for heteroscedasticity
+
+# Robust test statistics
+
+sjPlot::tab_model(m, vcov.fun = "HC", show.se = TRUE)
 
 #------------------
 # Multicollinearity
@@ -224,13 +245,6 @@ olsrr::ols_vif_tol(m) # All values are far lower than common thresholds, suggest
 #-----------------------
 
 summary(m)
-
-# Publication-ready version
-
-sjPlot::tab_model(m,
-                  show.se = TRUE,
-                  collapse.se = TRUE, 
-                  digits = 3)
 
 # Plot version
 
@@ -284,8 +298,18 @@ plot(m)
 dev.off()
 
 CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
-autoplot(m, which = 1:4)
+autoplot(m2, which = 1:4)
 dev.off()
+
+# Residuals by predictor
+
+aflScaled %>%
+  dplyr::select(-c(score)) %>%
+  pivot_longer(everything(), names_to = "names", values_to = "values") %>%
+  ggplot(aes()) %>%
+  labs(title = "",
+       x = "z-scored Predictor Value",
+       y = "")
 
 #------------------
 # Outlier detection

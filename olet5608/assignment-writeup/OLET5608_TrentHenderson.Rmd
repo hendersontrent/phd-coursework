@@ -26,6 +26,8 @@ library(Cairo)
 library(ggfortify)
 library(xtable)
 library(parameters)
+library(lmtest)
+library(sandwich)
 
 # Pull AFL data for 2005-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
@@ -349,7 +351,9 @@ coefs %>%
 A more detailed numerical presentation of coefficients is depicted below in Table \@ref(tab:coeftable). Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The results table below also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 58.9% of the observed variance in scores.
 
 ```{r coeftable, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
-stargazer::stargazer(m, header = FALSE)
+stargazer::stargazer(m,
+                     coeftest(m, vcovHC(m, type = "HC3")),
+                     type = "latex", header = FALSE)
 ```
 
 Evidently, both hit outs (*t* = -0.91, *p* = 0.366) and contested marks (*t* = 1.1, *p* = 0.263) were the only two non-significant predictors. Of the remaining predictors, two were negative and statistically significant. These included tackles (*t* = -4.0, *p* < .001) and clangers (*t* = -15.5, *p* < .001), such that a one standard deviation increase in tackles is associated with mean reduction of 1.2 in total score, while a one standard deviation increase in clangers is associated with mean reduction of 4.1 in total score. On the positive predictors, the two with the strongest coefficients are also conceptually related: inside 50s (*t* = 28.76, *p* < .001) and marks inside 50 (*t* = 38.51, *p* < .001). The magnitude of both these predictors is noteworthy, as a one standard deviation increase in inside 50s is associated with a mean increase of 9.3 in total score, and a one standard deviation increase in marks inside 50 is associated with a mean increase of 12.1 in total score.
