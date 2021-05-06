@@ -19,13 +19,15 @@ library(mgcv)
 library(mgcViz)
 library(Cairo)
 library(ggfortify)
+library(lmtest)
+library(sandwich)
 
-# Pull AFL data for 2010-2019
+# Pull AFL data for 2005-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
 # meaning the consistent home-and-away game style did not exist and may make it
 # heterogenous compared to previous seasons
 
-years <- c(seq(from = 2010, to = 2019, by = 1))
+years <- c(seq(from = 2005, to = 2019, by = 1))
 store <- list()
 
 for(i in years){
@@ -55,8 +57,9 @@ the_finals <- c("EF", "SF", "QF", "PF", "GF")
 aggregated <- all_seasons %>%
   filter(round %ni% the_finals) %>%
   mutate(round = as.numeric(round)) %>%
+  mutate(score = ifelse(playing_for == home_team, home_score, away_score)) %>%
   group_by(season, round, playing_for) %>%
-  summarise(goals = sum(goals),
+  summarise(score = mean(score),
             marks = sum(marks),
             handballs = sum(handballs),
             hit_outs = sum(hit_outs),
@@ -112,7 +115,7 @@ aflScaled <- aggregated %>%
 # Summary statistics
 #-------------------
 
-table1::table1(~ marks + handballs + hit_outs + tackles + rebounds + inside_50s + 
+table1::table1(~ score + marks + handballs + hit_outs + tackles + rebounds + inside_50s + 
                  clearances + clangers + frees_for + contested_possessions + contested_marks + marks_inside_50, 
                data = aggregated)
 
@@ -123,8 +126,8 @@ table1::table1(~ marks + handballs + hit_outs + tackles + rebounds + inside_50s 
 CairoPNG("olet5608/output/densities.png", 800, 600)
 aggregated %>%
   pivot_longer(everything(), names_to = "names", values_to = "values") %>%
-  ggplot(aes(x = values)) +
-  geom_density(alpha = 0.6, fill = "#d95f02") +
+  ggplot(aes(x = values, y = ..density..)) +
+  geom_histogram(alpha = 0.6, fill = "#d95f02", binwidth = 2) +
   labs(title = "Distribution of raw values for each variable",
        x = "Value",
        y = "Density") +
@@ -155,23 +158,22 @@ draw_plot <- function(data, cols, y, robust = FALSE){
   
   if(robust){
     p <- longer %>%
-      ggplot(aes(x = values, y = goals)) +
+      ggplot(aes(x = values, y = score)) +
       geom_point(alpha = 0.3, colour = "#003f5c") +
       geom_smooth(aes(group = covariates), formula = y ~ x, method = "rlm", method.args = list(method = "MM")) +
-      labs(title = "Outlier robust relationship between covariates and total goals kicked in AFL games")
+      labs(title = "Outlier robust relationship between quantitative covariates and total score in AFL games")
   } else{
     p <- longer %>%
-      ggplot(aes(x = values, y = goals)) +
+      ggplot(aes(x = values, y = score)) +
       geom_point(alpha = 0.3, colour = "#003f5c") +
       geom_smooth(aes(group = covariates), formula = y ~ x, method = "lm") +
-      labs(title = "Relationship between covariates and total goals kicked in AFL games")
+      labs(title = "Relationship between quantitative covariates and total score in AFL games")
   }
   
   p <- p +
     labs(subtitle = "Data is at the team and match level for all non-finals games in seasons 2010-2019 inclusive.",
          x = "Predictor Value",
-         y = "Total Goals per Team per Match",
-         caption = "Data source: fitzRoy R package") +
+         y = "Total Score per Team per Match") +
     facet_wrap(~covariates, scales = "free_x")
   
   return(p)
@@ -181,14 +183,14 @@ CairoPNG("olet5608/output/afl_scatter.png", 800, 600)
 draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
                                      "rebounds", "inside_50s", "clearances", "clangers",
                                      "frees_for", "contested_possessions", "contested_marks",
-                                     "marks_inside_50"), y = "goals", robust = FALSE)
+                                     "marks_inside_50"), y = "score", robust = FALSE)
 dev.off()
 
 CairoPNG("olet5608/output/afl_scatter_robust.png", 800, 600)
 draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles", 
                                       "rebounds", "inside_50s", "clearances", "clangers",
                                       "frees_for", "contested_possessions", "contested_marks",
-                                      "marks_inside_50"), y = "goals", robust = TRUE)
+                                      "marks_inside_50"), y = "score", robust = TRUE)
 dev.off()
 
 #-------------------
@@ -197,40 +199,52 @@ dev.off()
 
 # NOTE: Multicollinearity is numerically tested below using Variance Inflation Factors
 
-reducedMatrix <- aflScaled[,c(2:13)]
+reducedMatrix <- aflScaled[,-c(1)]
 
 CairoPNG("olet5608/output/correlation_matrix.png", 800, 600)
 corr <- round(cor(reducedMatrix), 2)
 ggcorrplot::ggcorrplot(corr, hc.order = TRUE, type = "lower", lab = TRUE,
-                       title = "Correlation matrix of predictors")
+                       title = "Correlation matrix of quantitative predictors")
 dev.off()
 
 #---------------- Model outputs ----------------
 
-#----------
-# Fit model
-#----------
+#-----------
+# Fit models
+#-----------
 
-m <- lm(goals ~ ., data = aflScaled)
+# Base OLS model
+
+m <- lm(score ~ ., data = aflScaled)
+
+# Square-root transformed response
+
+m1 <- lm(sqrt(score) ~ ., data = aflScaled)
+
+# Weighted OLS
+
+wt <- 1 / lm(abs(m$residuals) ~ m$fitted.values)$fitted.values^2
+m2 <- lm(score ~ ., weights = wt, data = aflScaled)
+
+# Heteroscedastic-robust standard errors of base OLS
+
+lmtest::bptest(m) # Breush-Pagan test for heteroscedasticity
+
+# Robust test statistics
+
+sjPlot::tab_model(m, vcov.fun = "HC", show.se = TRUE)
 
 #------------------
 # Multicollinearity
 #------------------
 
-olsrr::ols_vif_tol(m) # All values are close to 1 and far lower than common thresholds, suggesting no issue
+olsrr::ols_vif_tol(m) # All values are far lower than common thresholds, suggesting no issue
 
 #-----------------------
 # Retrieve model summary
 #-----------------------
 
 summary(m)
-
-# Publication-ready version
-
-sjPlot::tab_model(m,
-                  show.se = TRUE,
-                  collapse.se = TRUE, 
-                  digits = 3)
 
 # Plot version
 
@@ -261,13 +275,12 @@ coefs %>%
   ggplot() +
   geom_hline(aes(yintercept = 0), linetype = "dashed", size = 0.75, colour = "black") +
   geom_segment(aes(x = variable, xend = variable, y = lower, yend = upper, colour = category), size = 1.65) +
-  geom_point(aes(x = reorder(variable, -Estimate), y = Estimate, colour = category), size = 3.5) +
+  geom_point(aes(x = variable, y = Estimate, colour = category), size = 3.5) +
   labs(title = "Linear model coefficients and 95% confidence intervals",
        x = "Variable",
        y = "Coefficient Value",
        colour = NULL) +
   scale_colour_manual(values = mypal) +
-  scale_y_continuous(breaks = seq(from = -1, to = 2, by = 0.5)) +
   coord_flip() +
   theme(legend.position = "bottom",
         legend.key = element_blank())
@@ -285,18 +298,18 @@ plot(m)
 dev.off()
 
 CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
-autoplot(m, which = 1:4)
+autoplot(m2, which = 1:4)
 dev.off()
 
-# Square root epsilon of residuals
+# Residuals by predictor
 
-CairoPNG("olet5608/output/sqrt_epsilon.png", 800, 600)
-plot(fitted(m), sqrt(abs(residuals(m))), xlab = "Fitted", ylab = expression(sqrt(hat(epsilon))))
-dev.off()
-
-# Shapiro-Wilk for normality
-
-shapiro.test(residuals(m))
+aflScaled %>%
+  dplyr::select(-c(score)) %>%
+  pivot_longer(everything(), names_to = "names", values_to = "values") %>%
+  ggplot(aes()) %>%
+  labs(title = "",
+       x = "z-scored Predictor Value",
+       y = "")
 
 #------------------
 # Outlier detection
@@ -331,8 +344,8 @@ range(m2$w)
 # Generalised additive model
 #---------------------------
 
-thecols <- colnames(aflScaled)[-1]
-gamformula <- as.formula(paste("goals ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
+thecols <- colnames(aflScaled)[-c(2)]
+gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
 gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
 
 # Model outputs
