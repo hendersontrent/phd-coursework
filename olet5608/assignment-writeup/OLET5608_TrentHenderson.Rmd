@@ -5,7 +5,7 @@ authors:
     affiliation: OLET5608
     email: then6675@uni.sydney.edu.au
 abstract: |
-  Enter the text of your abstract here.
+  AFL is a highly-popular Australian sport that has garnered a lot of talk show attention, but suffers from a lack of statistical rigour. The present report sought to bridge this gap by providing a statistically robust exploration of predictors of scoring using data aggregated at the team and match level. A regression approach was adopted, which comprised an ordinary least squares and generalised additive model. Results found that hit outs and contested marks did not significantly predict scoring, while tackles and unforced errors singificantly and negatively predicted scoring, and rebounds, marks inside 50, marks, inside 50s, handballs, free kicks for, contested possessions, and clearances all significantly and positively predicted scoring. Implications for coaching and gameplay strategy, as well as limitations are discussed.
 bibliography: references.bib
 biblio-style: unsrt
 output: 
@@ -73,7 +73,7 @@ Historical AFL data has been made readily-accessible in an open-source setting t
   \item{FootyWire}
 \end{itemize}
 
-The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2005-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this, where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19 This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
+The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2005-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19. This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
 
 ## Data limitations
 
@@ -98,7 +98,7 @@ A rigorous and detailed linear modelling pipeline was implemented. This involved
 
 ## Exploratory data analysis and visualisation
 
-Prior to modelling, the data were explored visually and numerically to understand the empirical structure. Figure \@ref(fig:distplot) below shows the distributions of each quantitative variable.
+Prior to modelling, the data were aggregated and explored visually and numerically to understand the empirical structure. The data was aggregated to match-level sums for each time by summing over individual player statistics. Figure \@ref(fig:distplot) below shows the distributions of each aggregated quantitative variable.
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 # Aggregate over each team and match for some key variables of interest
@@ -170,7 +170,7 @@ aggregated %>%
   facet_wrap(~names, scales = "free_x")
 ```
 
-The data were further explored using high-level summary statistics. These are presented below in Table \@ref(fig:summarystats). Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling. This also means the coefficients will have an intuitive interpretation compared to other rescaling methods.
+The data were further explored using high-level summary statistics. These are presented below in Table \@ref(tab:summarystats). Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling. This also means the coefficients will have an intuitive interpretation compared to other rescaling methods.
 
 ```{r summarystats, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
 xtable(summarize(aggregated, type = "numeric"))
@@ -251,9 +251,9 @@ draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles
 
 A secondary visual test was conducted with a robust regression (using M-estimation) as the plots above appeared to contain some potential leverage points or outliers. The plot has been omitted for space, however there was almost no visual difference between the standard linear and the robust linear approaches.
 
-While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [see @multi1]. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below. Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
+While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [see @multi1]. Different threshold values exist for the VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below in Table \@ref(tab:vif). Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE}
+```{r vif, warning = FALSE, message = FALSE, echo = FALSE}
 print(olsrr::ols_vif_tol(m))
 ```
 
@@ -273,17 +273,19 @@ Normality of residuals is typially assessed graphically using a Q-Q plot, as see
 
 ## Preliminary advanced model exploration
 
-One other model was fit in addition to the standard linear model - a generalised additive model (GAM) [see @10.1214/ss/1177013604]. GAMs further generalise the commonly-used generalised linear model (GLM) to greatly increase flexibility and potential to model non-linearities. GAMs achieve this through the use of splines and basis functions whose number is specified by a knot parameter, and which are connected by smoothed polynomials. GAMs essentially enable the fitting of wiggly functions over the data with parameter optimisation. The basic form of a GAM can be written as follows, where the predictors are still entered linearly, but they are instead modelled using some unknown smooth functions:
+One other model was fit in addition to the standard linear model - a generalised additive model (GAM) [see @10.1214/ss/1177013604]. GAMs further generalise the commonly-used generalised linear model (GLM) to greatly increase flexibility and potential to model non-linearities. GAMs achieve this through the use of splines and basis functions whose number is specified by a knot parameter, and which are connected by smoothed polynomials. GAMs essentially enable the fitting of wiggly functions over the data with parameter optimisation. The basic form of a GAM is written in Equation \@ref(eq:gam), where the predictors are still entered linearly, but they are instead modelled using some unknown smooth functions:
 
-$y_i = \beta_0 + f_1(x_i) + f_2(x_i)... + f_n(x_n) + \epsilon_i$
+\begin{equation}
+y_i = \beta_0 + f_1(x_i) + f_2(x_i)... + f_n(x_n) + \epsilon_i (\#eq:gam)
+\end{equation}
 
 Where $\epsilon$ is (in the standard linear modelling case) Gaussian noise $\mathcal{N}(\mu,\sigma^2)$, specified by its mean and standard deviation. Of course, similar to GLMs, this Gaussian noise assumption is generalised to other probability distributions, though these are not the considered in this report. The GAM for this report was fit in `R` using the `mgcv` package [see @mgcv]. It was fit using Restricted Maximum Likelihood for reduced-rank model parameter estimation, as per advice by Wood [see @wood].
 
 ### Model assumption testing
 
-Similar to the standard linear model, core assumptions still need to hold for the GAM. These were also tested, with a summary output presented below in **FIGURE 1** generated by the `R` package `mgcViz` [see @mgcViz].
+Similar to the standard linear model, core assumptions still need to hold for the GAM. These were also tested, with a summary output presented below in Figure \@ref(fig:gamvis) generated by the `R` package `mgcViz` [see @mgcViz].
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'hide', fig.keep = TRUE, fig.width = 6, fig.height = 4}
+```{r gamvis, warning = FALSE, message = FALSE, echo = FALSE, results = 'hide', fig.keep = TRUE, fig.width = 6, fig.height = 4}
 thecols <- colnames(aflScaled)[-1]
 gamformula <- as.formula(paste("goals ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
 gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
@@ -300,9 +302,13 @@ check(viz,
 
 # Results
 
+The results section is organised by model type. Results for the linear model are discussed first, followed by the generalised additive model.
+
 ## Linear model
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 3}
+Mean estimates and 95% confidence intervals for each coefficient is presented below in Figure \@ref(fig:coefs).
+
+```{r coefs, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 3}
 coefs <- as.data.frame(coef(summary(m))) %>%
   tibble::rownames_to_column()
 
@@ -341,9 +347,9 @@ coefs %>%
         legend.key = element_blank())
 ```
 
-A numerical exploration of coefficients is presented below. SInce all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The results table below also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 58.9% of the observed variance in goals scored.
+A more detailed numerical presentation of coefficients is depicted below in Table \@ref(tab:coeftable). Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The results table below also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 58.9% of the observed variance in goals scored.
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
+```{r coeftable, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
 stargazer::stargazer(m, header = FALSE)
 ```
 
@@ -351,14 +357,29 @@ Evidently, both hit outs (*t* = -0.91, *p* = 0.366) and contested marks (*t* = 1
 
 ## GAM
 
-XX
+Coefficient plots for each predictor are presented below in Figure \@ref(fig:gamsmooths). Thhe interpretation relative to the standard linear model is important and interesting.
 
-```{r gam-smooths, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
+```{r gamsmooths, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4}
 gratia::draw(gam_mod)
+```
+
+A detailed numerical presentation of coefficients is depicted below in Table \@ref(tab:gamcoefs). The interpretation of smooth coefficients is different from that of the ordinary least squares model.
+
+```{r gamcoefs, warning = FALSE, message = FALSE, echo = FALSE}
+
+```
+
+### Comparison to linear model
+
+The GAM clearly adds complexity to the model. To compare the efficacy of the GAM with the standard ordinary least squares model, a metric that penalises complexity must be used, as parsimony is to be strived toward in statistical analysis to avoid overfitting. The Akaike information criterion (AIC) and Bayesian information criterion (BIC) are two quantities typically used for this purpose [see @10.1080/10635150490522304], where the penalty for additional parameters is larger in BIC. The results of both quantities for each model is presented below in Table \@ref(tab:penalties).
+
+```{r penalties, warning = FALSE, message = FALSE, echo = FALSE}
+
 ```
 
 # Discussion
 
+The present analysis aimed to produce an innovative and statistically robust exploration of predictors of scoring in the AFL using team-per-match-level data.
 
 ## Limitations
 
