@@ -321,7 +321,7 @@ range(m2$w)
 #---------------------------
 
 thecols <- colnames(aflScaled)[-c(2)]
-gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ "),paste0(" + home_away")))
+gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
 gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
 
 # Model outputs
