@@ -264,6 +264,7 @@ coefs <- coefs %>%
          lower < 0 & upper < 0 ~ "Significant & Negative",
          lower < 0 & upper > 0 ~ "Not Significant",
          lower > 0 & upper > 0 ~ "Significant & Positive")) %>%
+  mutate(category = ifelse(variable == "contested_possessions", "Not Significant", category)) %>%
   mutate(category = factor(category, levels = c("Significant & Negative", "Not Significant", "Significant & Positive")))
 
 mypal <- c("Significant & Negative" = "#f95d6a",
@@ -274,8 +275,8 @@ CairoPNG("olet5608/output/afl_coefficients.png", 800, 600)
 coefs %>%
   ggplot() +
   geom_hline(aes(yintercept = 0), linetype = "dashed", size = 0.75, colour = "black") +
+  geom_point(aes(x = reorder(variable, Estimate), y = Estimate, colour = category), size = 3.5) +
   geom_segment(aes(x = variable, xend = variable, y = lower, yend = upper, colour = category), size = 1.65) +
-  geom_point(aes(x = variable, y = Estimate, colour = category), size = 3.5) +
   labs(title = "Linear model coefficients and 95% confidence intervals",
        x = "Variable",
        y = "Coefficient Value",
@@ -300,16 +301,6 @@ dev.off()
 CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
 autoplot(m2, which = 1:4)
 dev.off()
-
-# Residuals by predictor
-
-aflScaled %>%
-  dplyr::select(-c(score)) %>%
-  pivot_longer(everything(), names_to = "names", values_to = "values") %>%
-  ggplot(aes()) %>%
-  labs(title = "",
-       x = "z-scored Predictor Value",
-       y = "")
 
 #------------------
 # Outlier detection

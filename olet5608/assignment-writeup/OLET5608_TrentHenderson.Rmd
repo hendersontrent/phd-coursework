@@ -308,47 +308,7 @@ The results section is organised by model type. Results for the linear model are
 
 ## Linear model
 
-Mean estimates and 95% confidence intervals for each coefficient is presented below in Figure \@ref(fig:coefs).
-
-```{r coefs, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 3}
-coefs <- as.data.frame(coef(summary(m))) %>%
-  tibble::rownames_to_column()
-
-confints <- as.data.frame(confint(m)) %>%
-  tibble::rownames_to_column()
-
-coefs <- coefs %>%
-  left_join(confints, by = c("rowname" = "rowname")) %>%
-  rename(variable = rowname,
-         lower = 6,
-         upper = 7) %>%
-  filter(variable != "(Intercept)") %>%
-  mutate(category = case_when(
-         lower < 0 & upper < 0 ~ "Significant & Negative",
-         lower < 0 & upper > 0 ~ "Not Significant",
-         lower > 0 & upper > 0 ~ "Significant & Positive")) %>%
-  mutate(category = factor(category, levels = c("Significant & Negative", "Not Significant", "Significant & Positive")))
-
-mypal <- c("Significant & Negative" = "#f95d6a",
-           "Not Significant" = "#7D9DAC",
-           "Significant & Positive" = "#ffa600")
-
-coefs %>%
-  ggplot() +
-  geom_hline(aes(yintercept = 0), linetype = "dashed", size = 0.75, colour = "black") +
-  geom_segment(aes(x = variable, xend = variable, y = lower, yend = upper, colour = category), size = 1.65) +
-  geom_point(aes(x = variable, y = Estimate, colour = category), size = 3.5) +
-  labs(title = "Linear model coefficients and 95% confidence intervals",
-       x = "Variable",
-       y = "Coefficient Value",
-       colour = NULL) +
-  scale_colour_manual(values = mypal) +
-  coord_flip() +
-  theme(legend.position = "bottom",
-        legend.key = element_blank())
-```
-
-A more detailed numerical presentation of coefficients is depicted below in Table \@ref(tab:coeftable). Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The results table below also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 58.9% of the observed variance in scores.
+Coefficients and model outputs are presented below in Table \@ref(tab:coeftable). Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The results table below also contains information regarding the overall model fit and *F*-statistic. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 58.9% of the observed variance in scores.
 
 ```{r coeftable, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
 stargazer::stargazer(m,
