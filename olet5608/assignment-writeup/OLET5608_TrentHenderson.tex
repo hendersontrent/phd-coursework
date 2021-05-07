@@ -40,16 +40,19 @@ AFL is a highly-popular Australian sport that has garnered a lot of talk
 show attention, but suffers from a lack of statistical rigour. The
 present report sought to bridge this gap by providing a statistically
 robust exploration of predictors of scoring using data aggregated at the
-team and match level. A regression approach was adopted, which comprised
-an ordinary least squares and generalised additive model. Results found
-that hit outs and contested marks did not significantly predict scoring,
-while tackles and unforced errors singificantly and negatively predicted
-scoring, and rebounds, marks inside 50, marks, inside 50s, handballs,
-free kicks for, contested possessions, and clearances all significantly
+team and match level. A regression approach was adopted through the use
+of a hetereoscedastic-robust ordinary least squares model. Results found
+that hit outs contested possessions, and contested marks did not
+significantly predict scoring, tackles and unforced errors singificantly
+and negatively predicted scoring, and rebounds, marks inside 50, marks,
+inside 50s, handballs, free kicks for, and clearances all significantly
 and positively predicted scoring. Implications for coaching and gameplay
 strategy, as well as limitations are discussed.
 \end{abstract}
 
+\keywords{
+    linear modelling, AFL, heteroscedasticity
+  }
 
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
@@ -83,8 +86,8 @@ predictors of scores in AFL matches?}
 \section{Data set}\label{data-set}}
 
 Historical AFL data has been made readily-accessible in an open-source
-setting through the R package \texttt{fitzRoy} (see Day, Nguyen, and
-Lane 2020). The package provides a simple API that accesses and
+setting through the \texttt{R} package \texttt{fitzRoy} (Day, Nguyen,
+and Lane 2020). The package provides a simple API that accesses and
 integrates a range of data sources that collate AFL data. Examples of
 these sources include:
 
@@ -178,7 +181,11 @@ aggregated to match-level sums for each time by summing over individual
 player statistics. Figure @ref(fig:distplot) below shows the
 distributions of each aggregated quantitative variable.
 
+\begin{figure}
+\centering
 \includegraphics{OLET5608_TrentHenderson_files/figure-latex/distplot-1.pdf}
+\caption{Distribution of raw values for each variable}
+\end{figure}
 
 The data were further explored using high-level summary statistics.
 These are presented below in Table @ref(tab:summarystats). Note the
@@ -189,94 +196,116 @@ standardised (z-scored) prior to modelling. This also means the
 coefficients will have an intuitive interpretation compared to other
 rescaling methods.
 
-\% latex table generated in R 4.0.2 by xtable 1.8-4 package \% Thu May 6
-16:40:45 2021
-
-\begin{table}[ht]
-\centering
-\begin{tabular}{rl}
-  \hline
- & type \\ 
-  \hline
-1 & numeric \\ 
-   \hline
-\end{tabular}
+\begin{table}[!htbp] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lccccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Pctl(25)} & \multicolumn{1}{c}{Pctl(75)} & \multicolumn{1}{c}{Max} \\ 
+\hline \\[-1.8ex] 
+\hline \\[-1.8ex] 
+\end{tabular} 
 \end{table}
 
 \hypertarget{model-fitting}{%
 \subsection{Model fitting}\label{model-fitting}}
 
+A detailed linear model fitting process was undertaken, and included
+specification of initial models, assessment of diagnostics, and
+re-specification of the model. Details are presented in the following
+sections.
+
 \hypertarget{model-assumption-testing}{%
 \subsection{Model assumption testing}\label{model-assumption-testing}}
 
-There are four core assumptions of linear regression model (see Faraway
+There are four core assumptions of linear regression model (Faraway
 2004). These include:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  Linear relationship between \texttt{X} and \texttt{y}
-\item
   Independent observations
 \item
-  Homogeneity of variance
+  Linear relationship between \texttt{X} and \texttt{y}
 \item
   Normality of residuals
+\item
+  Homogeneity of variance
 \end{enumerate}
 
 Since it is known that the data used for this report are independent
 observations, the following sections will focus on reporting the testing
 of the other assumptions.
 
-\hypertarget{assumption-1-linear-relationship}{%
-\subsubsection{Assumption 1: Linear
-relationship}\label{assumption-1-linear-relationship}}
+\hypertarget{linear-relationship}{%
+\subsubsection{Linear relationship}\label{linear-relationship}}
 
 The purpose of a linear model is to understand the relationship between
 some number of predictors and a quantitative response variable. As such,
 a linear model at its core assumes that all predictors are related
 linearly to the response variable.
 
+\begin{figure}
+\centering
 \includegraphics{OLET5608_TrentHenderson_files/figure-latex/unnamed-chunk-4-1.pdf}
-
-A secondary visual test was conducted with a robust regression (using
-M-estimation) as the plots above appeared to contain some potential
-leverage points or outliers. The plot has been omitted for space,
-however there was almost no visual difference between the standard
-linear and the robust linear approaches.
+\caption{Linear relationships between covariates and total score in AFL
+games}
+\end{figure}
 
 While all variables were being tested for appropriateness, a variance
 inflation factor (VIF) test was undertaken to estimate potential
 multicollinearity between the predictors. Multicollinearity is an issue
 as it can drive imprecise estimates, change parameter value signs, and
-impact \(R^2\) (see Hair et al. 2010). Different threshold values exist
-for the VIF, with cutoffs ranging from values less than four being
-acceptable (see Hair et al. 2010) to values less than ten being
-acceptable (see Hair et al. 1995). Outputs from the VIF test are
-presented below in Table @ref(tab:vif). Evidently, no predictor violates
-even the lowest bound commonly cited in the literature, indicating no
-issue with multicollinearity.
+impact \(R^2\) (Hair et al. 2010). Different threshold values exist for
+VIF, with cutoffs ranging from values less than four being acceptable
+(Hair et al. 2010) to values less than ten being acceptable (Hair et al.
+1995). Outputs from the VIF test are presented below in Table
+@ref(tab:vif). Evidently, no predictor violates even the lowest bound
+commonly cited in the literature, indicating no issue with
+multicollinearity.
 
-\begin{verbatim}
-##                Variables Tolerance      VIF
-## 1                  marks 0.5683153 1.759587
-## 2              handballs 0.7913858 1.263606
-## 3               hit_outs 0.6969646 1.434793
-## 4                tackles 0.6600943 1.514935
-## 5               rebounds 0.7584166 1.318537
-## 6             inside_50s 0.5373581 1.860956
-## 7             clearances 0.4959750 2.016231
-## 8               clangers 0.7910878 1.264082
-## 9              frees_for 0.9075108 1.101915
-## 10 contested_possessions 0.3002560 3.330491
-## 11       contested_marks 0.7390768 1.353039
-## 12       marks_inside_50 0.5687182 1.758340
-\end{verbatim}
+\begin{table}[ht]
+\centering
+\begin{tabular}{rlrr}
+  \hline
+ & Variables & Tolerance & VIF \\ 
+  \hline
+1 & marks & 0.57 & 1.76 \\ 
+  2 & handballs & 0.79 & 1.26 \\ 
+  3 & hit\_outs & 0.70 & 1.44 \\ 
+  4 & tackles & 0.66 & 1.51 \\ 
+  5 & rebounds & 0.76 & 1.32 \\ 
+  6 & inside\_50s & 0.54 & 1.86 \\ 
+  7 & clearances & 0.50 & 2.02 \\ 
+  8 & clangers & 0.79 & 1.26 \\ 
+  9 & frees\_for & 0.91 & 1.10 \\ 
+  10 & contested\_possessions & 0.30 & 3.33 \\ 
+  11 & contested\_marks & 0.74 & 1.35 \\ 
+  12 & marks\_inside\_50 & 0.57 & 1.76 \\ 
+   \hline
+\end{tabular}
+\end{table}
 
-\hypertarget{assumption-2-homogeneity-of-variance}{%
-\subsubsection{Assumption 2: Homogeneity of
-variance}\label{assumption-2-homogeneity-of-variance}}
+\hypertarget{normality-of-residuals}{%
+\subsubsection{Normality of residuals}\label{normality-of-residuals}}
+
+Normality of residuals is typically assessed graphically using a Q-Q
+plot, as seen in the upper right graphic in the matrix presented below A
+model with normally-distributed residuals should lie directly on the
+diagonal line. The residuals are almost entirely positioned on the line
+with very little variation at the ends indicating no issues with
+normality.
+
+\begin{figure}
+\centering
+\includegraphics{OLET5608_TrentHenderson_files/figure-latex/unnamed-chunk-5-1.pdf}
+\caption{Linear model diagnostic plots}
+\end{figure}
+
+\hypertarget{homogeneity-of-variance}{%
+\subsubsection{Homogeneity of variance}\label{homogeneity-of-variance}}
 
 Homoegeneity of variance - the lack of a systematic pattern or bias of
 residuals across model fitted or predictor values - is another core
@@ -284,211 +313,234 @@ linear model assumption. This assumption is typically assessed
 graphically using a residuals plot, where fitted values are plotted
 against model residuals. A model with homogeneity of variance should
 have no discernible pattern across the fitted values. This plot is
-depicted in the upper left in the graphics matrix below.
+depicted in the upper left in the graphics matrix above
 
-\includegraphics{OLET5608_TrentHenderson_files/figure-latex/unnamed-chunk-5-1.pdf}
-
-Evidently, there is a slight sag in the line through this plot,
-indicating potential heteroscedasticity. It was first hypothesised that
+Evidently, there is a quadratic-shaped sag in the line through this
+plot, indicating heteroscedasticity. It was first hypothesised that
 potential outliers might be influencing the results, despite the lack of
-compelling visual evidence based on the Cook's Distance plot. Following
-advice from (Faraway 2004), a test of the maximum studentised residual
-value against a Bonferroni-corrected critical value. Since the maximum
-residual value of 4.14 was less than the critical value of 4.45, it was
-declared that outliers were not a major issue.
+compelling visual evidence of leverage based on the Cook's distance
+plot. Following advice from (Faraway 2004), a test of the maximum
+studentised residual value against a Bonferroni-corrected critical
+value. Since the maximum residual value of 4.14 was less than the
+critical value of 4.45, it was declared that outliers were not a major
+issue.
 
-\hypertarget{assumption-3-normality-of-residuals}{%
-\subsubsection{Assumption 3: Normality of
-residuals}\label{assumption-3-normality-of-residuals}}
+Heteroscedasticity is a major issue for linear models. As a response to
+this initial violation, two follow-up models were specified: a weighted
+ordinary least squares (OLS) model, and an OLS with a square root
+transformed response variable. The weighted OLS model works by computing
+weights for each datapoint included, calculated by the inverse of
+squared fitted values from a linear regression of the absolute residuals
+of the original model as the response variable, and the fitted values of
+the original model as the predictor.
 
-Normality of residuals is typially assessed graphically using a Q-Q
-plot, as seen in the upper right graphic in the matrix presented above.
-A model with normally-distributed residuals should lie directly on the
-diagonal line. The residuals are almost entirely positioned on the line
-with very little variation at the ends indicating no issues with
-normality.
-
-\hypertarget{preliminary-advanced-model-exploration}{%
-\subsection{Preliminary advanced model
-exploration}\label{preliminary-advanced-model-exploration}}
-
-One other model was fit in addition to the standard linear model - a
-generalised additive model (GAM) (see Hastie and Tibshirani 1986). GAMs
-further generalise the commonly-used generalised linear model (GLM) to
-greatly increase flexibility and potential to model non-linearities.
-GAMs achieve this through the use of splines and basis functions whose
-number is specified by a knot parameter, and which are connected by
-smoothed polynomials. GAMs essentially enable the fitting of wiggly
-functions over the data with parameter optimisation. The basic form of a
-GAM is written in Equation @ref(eq:gam), where the predictors are still
-entered linearly, but they are instead modelled using some unknown
-smooth functions:
-
-\begin{equation}
-y_i = \beta_0 + f_1(x_i) + f_2(x_i)... + f_n(x_n) + \epsilon_i (\#eq:gam)
-\end{equation}
-
-Where \(\epsilon\) is (in the standard linear modelling case) Gaussian
-noise \(\mathcal{N}(\mu,\sigma^2)\), specified by its mean and standard
-deviation. Of course, similar to GLMs, this Gaussian noise assumption is
-generalised to other probability distributions, though these are not the
-considered in this report. The GAM for this report was fit in \texttt{R}
-using the \texttt{mgcv} package (see Wood 2011). It was fit using
-Restricted Maximum Likelihood for reduced-rank model parameter
-estimation, as per advice by Wood (see Wood, n.d.).
-
-\hypertarget{model-assumption-testing-1}{%
-\subsubsection{Model assumption
-testing}\label{model-assumption-testing-1}}
-
-Similar to the standard linear model, core assumptions still need to
-hold for the GAM. These were also tested, with a summary output
-presented below in Figure @ref(fig:gamvis) generated by the \texttt{R}
-package \texttt{mgcViz} (see Fasiolo et al. 2018).
-
-\includegraphics{OLET5608_TrentHenderson_files/figure-latex/gamvis-1.pdf}
+The weight vector is then factored into the matrix decomposition to
+solve the linear regression problem. Neither of these two models fixed
+the heteroscedasticity violation in the present study, and the square
+root transform actually introduced violations in other core assumptions,
+particularly normality of residuals. As a solution, a
+heteroscedastic-robust estimator was used, which produces robust
+estimations of standard errors, test statistics, and \emph{p}-values.
+Robust estimators are implemented in \texttt{R} using the
+\texttt{sandwich} package (Zeileis 2004; Zeileis, Köll, and Graham
+2020). The estimators work by introducing a new term, \(\Omega\), that
+acts on the diagonal of the variance-covariance matrix, and relaxes the
+assumption of homogeneity. The inclusion of heteroscedastic-robust
+estimators reduces the size of test statistics, drives significance
+values away from zero, and increases standard errors to reflect the
+variance structure of the data.
 
 \hypertarget{results}{%
 \section{Results}\label{results}}
 
-The results section is organised by model type. Results for the linear
-model are discussed first, followed by the generalised additive model.
-
-\hypertarget{linear-model}{%
-\subsection{Linear model}\label{linear-model}}
-
-Mean estimates and 95\% confidence intervals for each coefficient is
-presented below in Figure @ref(fig:coefs).
-
-\includegraphics{OLET5608_TrentHenderson_files/figure-latex/coefs-1.pdf}
-
-A more detailed numerical presentation of coefficients is depicted below
-in Table @ref(tab:coeftable). Since all predictors were mean-centred and
+Coefficients and model outputs are presented below in Table
+@ref(tab:coeftable) where the first column of the dependent variable
+section is the standard OLS model and the second column is the
+heteroscedastic-robust correction. Intepretation will focus on the
+robust estimators, given the violation of homoscedasticity. For each
+predictor, coefficients, standard errors, \emph{t}-statistics, and
+\emph{p}-values are reported. Since all predictors were mean-centred and
 standardised (z-scored) prior to analysis, the interpretation is as
 follows: \emph{the coefficient represents the change in total score
 (response variable) for a one standard deviation change (increase or
 decrease, depending on sign of the coefficient) in the predictor}. The
-results table below also contains information regarding the overall
-model fit and \emph{F}-statistic. The overall model is statistically
-significant, \emph{F} = 676.7 (\emph{df} = 12; 5639), and explains
-approximately 58.9\% of the observed variance in scores.
+overall model is statistically significant, \emph{F} = 676.7 (\emph{df}
+= 12; 5639), and explains approximately 59\% of the observed variance in
+scores.
 
 \begin{table}[!htbp] \centering 
   \caption{} 
   \label{} 
-\begin{tabular}{@{\extracolsep{5pt}}lc} 
+\begin{tabular}{@{\extracolsep{5pt}}lcc} 
 \\[-1.8ex]\hline 
 \hline \\[-1.8ex] 
- & \multicolumn{1}{c}{\textit{Dependent variable:}} \\ 
-\cline{2-2} 
-\\[-1.8ex] & score \\ 
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & score &   \\ 
+\\[-1.8ex] & \textit{OLS} & \textit{coefficient} \\ 
+ & \textit{} & \textit{test} \\ 
+\\[-1.8ex] & (1) & (2)\\ 
 \hline \\[-1.8ex] 
- marks & 2.233$^{***}$ \\ 
-  & (0.315) \\ 
-  & \\ 
- handballs & 1.238$^{***}$ \\ 
-  & (0.267) \\ 
-  & \\ 
- hit\_outs & $-$0.257 \\ 
-  & (0.284) \\ 
-  & \\ 
- tackles & $-$1.179$^{***}$ \\ 
-  & (0.292) \\ 
-  & \\ 
- rebounds & 0.974$^{***}$ \\ 
-  & (0.273) \\ 
-  & \\ 
- inside\_50s & 9.318$^{***}$ \\ 
-  & (0.324) \\ 
-  & \\ 
- clearances & 4.358$^{***}$ \\ 
-  & (0.337) \\ 
-  & \\ 
- clangers & $-$4.148$^{***}$ \\ 
-  & (0.267) \\ 
-  & \\ 
- frees\_for & 2.020$^{***}$ \\ 
-  & (0.249) \\ 
-  & \\ 
- contested\_possessions & 0.866$^{**}$ \\ 
-  & (0.433) \\ 
-  & \\ 
- contested\_marks & 0.309 \\ 
-  & (0.276) \\ 
-  & \\ 
- marks\_inside\_50 & 12.129$^{***}$ \\ 
-  & (0.315) \\ 
-  & \\ 
- Constant & 90.267$^{***}$ \\ 
-  & (0.237) \\ 
-  & \\ 
-\hline \\[-1.8ex] 
-Observations & 5,652 \\ 
-R$^{2}$ & 0.590 \\ 
-Adjusted R$^{2}$ & 0.589 \\ 
-Residual Std. Error & 17.852 (df = 5639) \\ 
-F Statistic & 676.676$^{***}$ (df = 12; 5639) \\ 
+ marks & 2.233 (1.616, 2.851) & 2.233 (1.615, 2.852) \\ 
+  & t = 7.089$^{***}$ & t = 7.079$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  handballs & 1.238 (0.715, 1.761) & 1.238 (0.710, 1.766) \\ 
+  & t = 4.637$^{***}$ & t = 4.592$^{***}$ \\ 
+  & p = 0.00001 & p = 0.00001 \\ 
+  hit\_outs & $-$0.257 ($-$0.815, 0.300) & $-$0.257 ($-$0.821, 0.306) \\ 
+  & t = $-$0.905 & t = $-$0.896 \\ 
+  & p = 0.366 & p = 0.371 \\ 
+  tackles & $-$1.179 ($-$1.752, $-$0.607) & $-$1.179 ($-$1.746, $-$0.613) \\ 
+  & t = $-$4.035$^{***}$ & t = $-$4.081$^{***}$ \\ 
+  & p = 0.0001 & p = 0.00005 \\ 
+  rebounds & 0.974 (0.439, 1.508) & 0.974 (0.433, 1.514) \\ 
+  & t = 3.571$^{***}$ & t = 3.532$^{***}$ \\ 
+  & p = 0.0004 & p = 0.0005 \\ 
+  inside\_50s & 9.318 (8.683, 9.953) & 9.318 (8.663, 9.972) \\ 
+  & t = 28.761$^{***}$ & t = 27.911$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  clearances & 4.358 (3.697, 5.019) & 4.358 (3.678, 5.038) \\ 
+  & t = 12.924$^{***}$ & t = 12.562$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  clangers & $-$4.148 ($-$4.671, $-$3.625) & $-$4.148 ($-$4.677, $-$3.619) \\ 
+  & t = $-$15.535$^{***}$ & t = $-$15.358$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  frees\_for & 2.020 (1.531, 2.508) & 2.020 (1.529, 2.510) \\ 
+  & t = 8.101$^{***}$ & t = 8.074$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  contested\_possessions & 0.866 (0.017, 1.716) & 0.866 ($-$0.009, 1.742) \\ 
+  & t = 1.999$^{*}$ & t = 1.939 \\ 
+  & p = 0.046 & p = 0.053 \\ 
+  contested\_marks & 0.309 ($-$0.232, 0.851) & 0.309 ($-$0.236, 0.855) \\ 
+  & t = 1.120 & t = 1.113 \\ 
+  & p = 0.263 & p = 0.266 \\ 
+  marks\_inside\_50 & 12.129 (11.511, 12.746) & 12.129 (11.498, 12.759) \\ 
+  & t = 38.514$^{***}$ & t = 37.730$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+  Constant & 90.267 (89.802, 90.733) & 90.267 (89.801, 90.733) \\ 
+  & t = 380.132$^{***}$ & t = 379.669$^{***}$ \\ 
+  & p = 0.000 & p = 0.000 \\ 
+ \hline \\[-1.8ex] 
+Observations & 5,652 &  \\ 
+R$^{2}$ & 0.590 &  \\ 
+Adjusted R$^{2}$ & 0.589 &  \\ 
+Residual Std. Error & 17.852 (df = 5639) &  \\ 
+F Statistic & 676.676$^{***}$ (df = 12; 5639) &  \\ 
 \hline 
 \hline \\[-1.8ex] 
-\textit{Note:}  & \multicolumn{1}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.05; $^{**}$p$<$0.01; $^{***}$p$<$0.001} \\ 
 \end{tabular} 
 \end{table}
 
-Evidently, both hit outs (\emph{t} = -0.91, \emph{p} = 0.366) and
-contested marks (\emph{t} = 1.1, \emph{p} = 0.263) were the only two
-non-significant predictors. Of the remaining predictors, two were
-negative and statistically significant. These included tackles (\emph{t}
-= -4.0, \emph{p} \textless{} .001) and clangers (\emph{t} = -15.5,
-\emph{p} \textless{} .001), such that a one standard deviation increase
-in tackles is associated with mean reduction of 1.2 in total score,
-while a one standard deviation increase in clangers is associated with
-mean reduction of 4.1 in total score. On the positive predictors, the
-two with the strongest coefficients are also conceptually related:
-inside 50s (\emph{t} = 28.76, \emph{p} \textless{} .001) and marks
-inside 50 (\emph{t} = 38.51, \emph{p} \textless{} .001). The magnitude
-of both these predictors is noteworthy, as a one standard deviation
-increase in inside 50s is associated with a mean increase of 9.3 in
-total score, and a one standard deviation increase in marks inside 50 is
-associated with a mean increase of 12.1 in total score.
-
-\hypertarget{gam}{%
-\subsection{GAM}\label{gam}}
-
-Coefficient plots for each predictor are presented below in Figure
-@ref(fig:gamsmooths). Thhe interpretation relative to the standard
-linear model is important and interesting.
-
-\includegraphics{OLET5608_TrentHenderson_files/figure-latex/gamsmooths-1.pdf}
-
-A detailed numerical presentation of coefficients is depicted below in
-Table @ref(tab:gamcoefs). The interpretation of smooth coefficients is
-different from that of the ordinary least squares model.
-
-\hypertarget{comparison-to-linear-model}{%
-\subsubsection{Comparison to linear
-model}\label{comparison-to-linear-model}}
-
-The GAM clearly adds complexity to the model. To compare the efficacy of
-the GAM with the standard ordinary least squares model, a metric that
-penalises complexity must be used, as parsimony is to be strived toward
-in statistical analysis to avoid overfitting. The Akaike information
-criterion (AIC) and Bayesian information criterion (BIC) are two
-quantities typically used for this purpose (see Posada and Buckley
-2004), where the penalty for additional parameters is larger in BIC. The
-results of both quantities for each model is presented below in Table
-@ref(tab:penalties).
+Evidently, hit outs (\emph{t} = -0.896, \emph{p} = 0.371), contested
+possessions (\emph{t} = 1.94, \emph{p} = 0.053) and contested marks
+(\emph{t} = 1.1, \emph{p} = 0.266) were the only three non-significant
+predictors. Of the remaining predictors, two were negative and
+statistically significant. These included tackles (\emph{t} = -4.1,
+\emph{p} \textless{} .001) and clangers (\emph{t} = -15.4, \emph{p}
+\textless{} .001), such that a one standard deviation increase in
+tackles is associated with mean reduction of 1.2 in total score, and a
+one standard deviation increase in clangers is associated with mean
+reduction of 4.1 in total score. On the positive predictors, the two
+with the strongest coefficients are mechanically related in terms of AFL
+gameplay: inside 50s (\emph{t} = 27.91, \emph{p} \textless{} .001) and
+marks inside 50 (\emph{t} = 37.7, \emph{p} \textless{} .001). The
+magnitude of both these predictors is noteworthy, as a one standard
+deviation increase in inside 50s is associated with a mean increase of
+9.3 in total score, and a one standard deviation increase in marks
+inside 50 is associated with a mean increase of 12.1 in total score.
 
 \hypertarget{discussion}{%
 \section{Discussion}\label{discussion}}
 
 The present analysis aimed to produce an innovative and statistically
 robust exploration of predictors of scoring in the AFL using
-team-per-match-level data.
+team-per-match-level data accessed through the \texttt{R} package
+\texttt{fitzRoy}. While not causal, the analysis sought to quantify the
+type and magnitude of any relationships with end-of-match scores.
+
+\hypertarget{implications-for-afl-teams}{%
+\subsection{Implications for AFL
+teams}\label{implications-for-afl-teams}}
+
+This report found some potentially informative relationships regarding
+scoring in the AFL that teams may seek to consider. First, teams should
+seek to deeply understand their potential to generate opportunities
+within the fifty-metre circle in front of goal. The analysis strongly
+supports this recommendation, as increases in either or both of inside
+50s and marks inside 50 is associated with a very substantial increase
+in total score. From a gameplay sense this is intuitive, as being closer
+to goal with possession of the ball would increase the likelihood of
+scoring, and a mark inside 50 means a guaranteed set shot (uninterrupted
+free shot) at goal, further increasingly the likelihood of kicking a
+six-point goal.
+
+Second, teams should also consider the importance of clearances. The
+strong positive association found between clearances and scores was
+surprising. This is because clearances involve a team kicking the ball
+away from their own goal area, which is a heavily defensive statistic.
+The positive relationship may suggest that the opposition team was
+unsuccessful in scoring on multiple occasions, and so the team could
+take advantage of converting a successful defense into attacking
+opportunities of their own.
+
+Third, teams should be cautious not to interpret the causal direction of
+some of the relationships uncovered in this report. The negative
+relationship between tackles and scores is a strong example of this. It
+is not necessarily the case that tackling less directly results in
+higher scores at the end of a match. It is far more likely that teams
+who score more (therefore more likely winning more) are just more
+defensively efficient or spend more time attacking rather than
+defending. Both of these characteristics would manifest as noticeably
+lower tackle counts.
 
 \hypertarget{limitations}{%
 \subsection{Limitations}\label{limitations}}
 
-Variable selection
+Despite the potentially informative findings, there were some
+limitations with the analysis. The first, as described earlier, is that
+the data is not official, and therefore its accuracy is unknown.
+However, it remains likely that the data quality is high, given that
+some of the underlying sources are official and published material and
+that the project is open-source with contributions for numerous
+high-profile researchers and analysts.
+
+A second limitation is that of variable selection. The variables
+included in this analysis were selected based on subject matter
+expertise and prior knowledge of AFL on behalf of the author. However,
+these variables only explained roughly sixty per cent of the variance in
+match scores. It is highly likely that the addition of more variables
+included in the larger dataset of approximately sixty variables would
+help drive this number closer to a more respectable percentage, such as
+eighty or ninety per cent. Since factor variables are included in this
+broader set, their inclusion raises some interesting questions around
+interaction terms. For example, future research may seek to fit
+interaction terms by team, or by home versus away, to better understand
+the dynamics of AFL metrics on match scores. Of course, the inclusion of
+more covariates, especially large numbers of them, may raise serious
+issues around multicollinearity or other model assumptions. Researchers
+may seek to account for this by first applying variable selection
+procedures such as Lasso regression (Tibshirani 1996).
+
+A third limitation is that of model selection. It remains unclear
+whether an ordinary least squares regression approach is the optimal
+modelling technique for this data. Preliminary follow-up analysis
+undertaken by the author revealed that a generalised additive model
+(Hastie and Tibshirani 1986; Wood, n.d., 2011) - a model that linearly
+adds estimated smooth functions using splines over each covariate -
+produced a better model fit at a lower Akaike information criterion
+(Posada and Buckley 2004). Further, since the response variable is a
+non-zero count, it may be more appropriate to consider a generalised
+linear model with a link function appropriate to an integer response,
+such as a Poisson or negative binomial-distributed model. The added
+benefit of these models is that they correctly model the response as a
+discrete-valued probability mass function, instead of the probability
+density function assumed by a Gaussian linear model (if a maximum
+likelihood and not ordinary least squares approach is taken to solving
+the regression problem). Future research should aim to consider these
+modelling options, and potentially even perform a direct comparison.
+
+\pagebreak
 
 \hypertarget{references}{%
 \section*{References}\label{references}}
@@ -503,11 +555,6 @@ Scrape and Process Afl Data}.
 \leavevmode\hypertarget{ref-R:Faraway:2004}{}%
 Faraway, Julian J. 2004. \emph{Linear Models with R}. Chapman \&
 Hall/CRC. \url{http://www.maths.bath.ac.uk/\%20jjf23/LMR/}.
-
-\leavevmode\hypertarget{ref-mgcViz}{}%
-Fasiolo, Matteo, Raphael Nedellec, Yannig Goude, and Simon N. Wood.
-2018. ``Scalable Visualisation Methods for Modern Generalized Additive
-Models.'' \emph{Arxiv Preprint}. \url{https://arxiv.org/abs/1707.03307}.
 
 \leavevmode\hypertarget{ref-multi2}{}%
 Hair, J. F., R. E. Anderson, R. L. Tatham, and W. C. Black. 1995.
@@ -539,6 +586,12 @@ Biology} 53 (5): 793--808.
 Rodgers, Stephen. 1996. \emph{Every Game Ever Played: VFL/Afl Results,
 1897-1995}. Viking.
 
+\leavevmode\hypertarget{ref-https:ux2fux2fdoi.orgux2f10.1111ux2fj.2517-6161.1996.tb02080.x}{}%
+Tibshirani, Robert. 1996. ``Regression Shrinkage and Selection via the
+Lasso.'' \emph{Journal of the Royal Statistical Society: Series B
+(Methodological)} 58 (1): 267--88.
+\url{https://doi.org/https://doi.org/10.1111/j.2517-6161.1996.tb02080.x}.
+
 \leavevmode\hypertarget{ref-mgcv}{}%
 Wood, S. N. 2011. ``Fast Stable Restricted Maximum Likelihood and
 Marginal Likelihood Estimation of Semiparametric Generalized Linear
@@ -548,6 +601,17 @@ Models.'' \emph{Journal of the Royal Statistical Society (B)} 73 (1):
 \leavevmode\hypertarget{ref-wood}{}%
 ---------. n.d. ``Frequently Asked Questions for Package Mgcv.''
 \url{http://web.mit.edu/~r/current/arch/i386_linux26/lib/R/library/mgcv/html/mgcv-FAQ.html}.
+
+\leavevmode\hypertarget{ref-JSSv011i10}{}%
+Zeileis, Achim. 2004. ``Econometric Computing with Hc and Hac Covariance
+Matrix Estimators.'' \emph{Journal of Statistical Software, Articles} 11
+(10): 1--17. \url{https://doi.org/10.18637/jss.v011.i10}.
+
+\leavevmode\hypertarget{ref-JSSv095i01}{}%
+Zeileis, Achim, Susanne Köll, and Nathaniel Graham. 2020. ``Various
+Versatile Variances: An Object-Oriented Implementation of Clustered
+Covariances in R.'' \emph{Journal of Statistical Software, Articles} 95
+(1): 1--36. \url{https://doi.org/10.18637/jss.v095.i01}.
 
 \bibliographystyle{unsrt}
 \bibliography{references.bib}
