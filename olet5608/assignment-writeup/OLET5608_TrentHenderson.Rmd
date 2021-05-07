@@ -65,7 +65,7 @@ Globally, sport analytics has continued to generate increasing attention, with w
 
 # Data set
 
-Historical AFL data has been made readily-accessible in an open-source setting through the `R` package `fitzRoy` [see @fitzRoy]. The package provides a simple API that accesses and integrates a range of data sources that collate AFL data. Examples of these sources include:
+Historical AFL data has been made readily-accessible in an open-source setting through the `R` package `fitzRoy` [@fitzRoy]. The package provides a simple API that accesses and integrates a range of data sources that collate AFL data. Examples of these sources include:
 
 \begin{itemize}
   \item{AFL}
@@ -173,12 +173,12 @@ aggregated %>%
 The data were further explored using high-level summary statistics. These are presented below in Table \@ref(tab:summarystats). Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling. This also means the coefficients will have an intuitive interpretation compared to other rescaling methods.
 
 ```{r summarystats, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
-xtable(summarize(aggregated, type = "numeric"))
+stargazer::stargazer(aggregated, type = "latex", header = FALSE)
 ```
 
 ## Model fitting
 
-
+A detailed linear model fitting process was undertaken, and included specification of initial models, assessment of diagnostics, and re-specification of the model. Details are presented in the following sections.
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 m <- lm(score ~ ., data = aflScaled)
@@ -186,20 +186,20 @@ m <- lm(score ~ ., data = aflScaled)
 
 ## Model assumption testing
 
-There are four core assumptions of linear regression model [see @R:Faraway:2004]. These include:
+There are four core assumptions of linear regression model [@R:Faraway:2004]. These include:
 
-1. Linear relationship between `X` and `y`
-2. Independent observations
-2. Homogeneity of variance
-4. Normality of residuals
+1. Independent observations
+2. Linear relationship between `X` and `y`
+3. Normality of residuals
+4. Homogeneity of variance
 
 Since it is known that the data used for this report are independent observations, the following sections will focus on reporting the testing of the other assumptions.
 
-### Assumption 1: Linear relationship
+### Linear relationship
 
 The purpose of a linear model is to understand the relationship between some number of predictors and a quantitative response variable. As such, a linear model at its core assumes that all predictors are related linearly to the response variable.
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Outlier robust relationship between covariates and total score in AFL games"}
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Linear relationships between covariates and total score in AFL games"}
 #' Function to produce raw scatterplot with smoothed trendline for all covariates
 #' 
 #' @param data a dataframe containing the variables to visualise
@@ -246,25 +246,34 @@ draw_plot(data = aggregated, cols = c("marks", "handballs", "hit_outs", "tackles
                                      "marks_inside_50"), y = "score", robust = FALSE)
 ```
 
-While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [see @multi1]. Different threshold values exist for VIF, with cutoffs ranging from values less than four being acceptable [see @multi1] to values less than ten being acceptable [see @multi2]. Outputs from the VIF test are presented below in Table \@ref(tab:vif). Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
+While all variables were being tested for appropriateness, a variance inflation factor (VIF) test was undertaken to estimate potential multicollinearity between the predictors. Multicollinearity is an issue as it can drive imprecise estimates, change parameter value signs, and impact $R^2$ [@multi1]. Different threshold values exist for VIF, with cutoffs ranging from values less than four being acceptable [@multi1] to values less than ten being acceptable [@multi2]. Outputs from the VIF test are presented below in Table \@ref(tab:vif). Evidently, no predictor violates even the lowest bound commonly cited in the literature, indicating no issue with multicollinearity.
 
-```{r vif, warning = FALSE, message = FALSE, echo = FALSE}
-print(olsrr::ols_vif_tol(m))
+```{r vif, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
+viftab <- olsrr::ols_vif_tol(m) %>%
+  mutate(Tolerance = round(Tolerance, digits = 3),
+         VIF = round(VIF, digits = 3))
+
+viftab2 <- xtable(viftab)
+print(viftab2, comment = FALSE)
 ```
 
-### Assumption 2: Homogeneity of variance
+### Normality of residuals
 
-Homoegeneity of variance - the lack of a systematic pattern or bias of residuals across model fitted or predictor values - is another core linear model assumption. This assumption is typically assessed graphically using a residuals plot, where fitted values are plotted against model residuals. A model with homogeneity of variance should have no discernible pattern across the fitted values. This plot is depicted in the upper left in the graphics matrix below.
+Normality of residuals is typically assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented below A model with normally-distributed residuals should lie directly on the diagonal line. The residuals are almost entirely positioned on the line with very little variation at the ends indicating no issues with normality.
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Linear model diagnostics plots"}
+```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Linear model diagnostic plots"}
 autoplot(m, which = 1:4)
 ```
 
-Evidently, there is a quadratic-shaped sag in the line through this plot, indicating potential heteroscedasticity. It was first hypothesised that potential outliers might be influencing the results, despite the lack of compelling visual evidence based on the Cook's Distance plot. Following advice from [@R:Faraway:2004], a test of the maximum studentised residual value against a Bonferroni-corrected critical value. Since the maximum residual value of 4.14 was less than the critical value of 4.45, it was declared that outliers were not a major issue.
+### Homogeneity of variance
 
-### Assumption 3: Normality of residuals
+Homoegeneity of variance - the lack of a systematic pattern or bias of residuals across model fitted or predictor values - is another core linear model assumption. This assumption is typically assessed graphically using a residuals plot, where fitted values are plotted against model residuals. A model with homogeneity of variance should have no discernible pattern across the fitted values. This plot is depicted in the upper left in the graphics matrix above
 
-Normality of residuals is typially assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented above. A model with normally-distributed residuals should lie directly on the diagonal line. The residuals are almost entirely positioned on the line with very little variation at the ends indicating no issues with normality.
+Evidently, there is a quadratic-shaped sag in the line through this plot, indicating heteroscedasticity. It was first hypothesised that potential outliers might be influencing the results, despite the lack of compelling visual evidence of leverage based on the Cook's distance plot. Following advice from [@R:Faraway:2004], a test of the maximum studentised residual value against a Bonferroni-corrected critical value. Since the maximum residual value of 4.14 was less than the critical value of 4.45, it was declared that outliers were not a major issue. 
+
+Heteroscedasticity is a major issue for linear models. As a response to this initial violation, two follow-up models were specified: a weighted ordinary least squares (OLS) model, and an OLS with a square root transformed response variable. The weighted OLS model works by computing weights for each datapoint included, calculated by the inverse of squared fitted values from a linear regression of the absolute residuals of the original model as the response variable, and the fitted values of the original model as the predictor.
+
+The weight vector is then factored into the matrix decomposition to solve the linear regression problem. Neither of these two models fixed the heteroscedasticity violation in the present study, and the square root transform actually introduced violations in other core assumptions, particularly normality of residuals. As a solution, a heteroscedastic-robust estimator was used, which produces robust estimations of standard errors, test statistics, and *p*-values. Robust estimators are implemented in `R` using the `sandwich` package [@JSSv011i10; @JSSv095i01]. The estimators work by introducing a new term, $\Omega$, that acts on the diagonal of the variance-covariance matrix, and relaxes the assumption of homogeneity. The inclusion of heteroscedastic-robust estimators reduces the size of test statistics, drives significance values away from zero, and increases standard errors to reflect the variance structure of the data.
 
 # Results
 
@@ -281,11 +290,15 @@ Evidently, hit outs (*t* = -0.896, *p* = 0.371), contested possessions (*t* = 1.
 
 # Discussion
 
-The present analysis aimed to produce an innovative and statistically robust exploration of predictors of scoring in the AFL using team-per-match-level data accessed through the `R` package `fitzRoy`. While not explicitly causal, the analysis sought to quantify the type and magnitude of any relationships with end-of-match scores.
+The present analysis aimed to produce an innovative and statistically robust exploration of predictors of scoring in the AFL using team-per-match-level data accessed through the `R` package `fitzRoy`. While not causal, the analysis sought to quantify the type and magnitude of any relationships with end-of-match scores.
 
 ## Implications for AFL teams
 
-X
+This report found some potentially informative relationships regarding scoring in the AFL that teams may seek to consider. First, teams should seek to deeply understand their potential to generate opportunities within the fifty-metre circle in front of goal. The analysis strongly supports this recommendation, as increases in either or both of inside 50s and marks inside 50 is associated with a very substantial increase in total score. From a gameplay sense this is intuitive, as being closer to goal with possession of the ball would increase the likelihood of scoring, and a mark inside 50 means a guaranteed set shot (uninterrupted free shot) at goal, further increasingly the likelihood of kicking a six-point goal.
+
+Second, teams should also consider the importance of clearances. The strong positive association found between clearances and scores was surprising. This is because clearances involve a team kicking the ball away from their own goal area, which is a heavily defensive statistic. The positive relationship may suggest that the opposition team was unsuccessful in scoring on multiple occasions, and so the team could take advantage of converting a successful defense into attacking opportunities of their own.
+
+Third, teams should be cautious not to interpret the causal direction of some of the relationships uncovered in this report. The negative relationship between tackles and scores is a strong example of this. It is not necessarily the case that tackling less directly results in higher scores at the end of a match. It is far more likely that teams who score more (therefore more likely winning more) are just more defensively efficient or spend more time attacking rather than defending. Both of these characteristics would manifest as noticeably lower tackle counts.
 
 ## Limitations
 
@@ -293,6 +306,7 @@ Despite the potentially informative findings, there were some limitations with t
 
 A second limitation is that of variable selection. The variables included in this analysis were selected based on subject matter expertise and prior knowledge of AFL on behalf of the author. However, these variables only explained roughly sixty per cent of the variance in match scores. It is highly likely that the addition of more variables included in the larger dataset of approximately sixty variables would help drive this number closer to a more respectable percentage, such as eighty or ninety per cent. Since factor variables are included in this broader set, their inclusion raises some interesting questions around interaction terms. For example, future research may seek to fit interaction terms by team, or by home versus away, to better understand the dynamics of AFL metrics on match scores. Of course, the inclusion of more covariates, especially large numbers of them, may raise serious issues around multicollinearity or other model assumptions. Researchers may seek to account for this by first applying variable selection procedures such as Lasso regression [@https://doi.org/10.1111/j.2517-6161.1996.tb02080.x].
 
-A third limitation is that of model selection. It remains unclear whether an ordinary least squares regression approach is the optimal modelling technique for this data. Preliminary analysis undertaken by the author revealed that a generalised additive model [@10.1214/ss/1177013604; @wood; @mgcv] - a model that linearly adds estimated smooth functions using splines over each covariate - produced a better model fit at a lower Akaike information criterion [@10.1080/10635150490522304]. Further, since the response variable is a non-zero count, it may be more appropriate to consider a generalised linear model with a link function appropriate to an integer response, such as a Poisson or negative binomial-distributed model. The added benefit of these models is they correctly model the response as a discrete-valued probability mass function, instead of the probability density function assumed by a Gaussian linear model (if a likelihood and not ordinary least squares approach is taken). Future research should aim to consider these modelling options, and potentially even perform a direct comparison.
+A third limitation is that of model selection. It remains unclear whether an ordinary least squares regression approach is the optimal modelling technique for this data. Preliminary follow-up analysis undertaken by the author revealed that a generalised additive model [@10.1214/ss/1177013604; @wood; @mgcv] - a model that linearly adds estimated smooth functions using splines over each covariate - produced a better model fit at a lower Akaike information criterion [@10.1080/10635150490522304]. Further, since the response variable is a non-zero count, it may be more appropriate to consider a generalised linear model with a link function appropriate to an integer response, such as a Poisson or negative binomial-distributed model. The added benefit of these models is that they correctly model the response as a discrete-valued probability mass function, instead of the probability density function assumed by a Gaussian linear model (if a maximum likelihood and not ordinary least squares approach is taken to solving the regression problem). Future research should aim to consider these modelling options, and potentially even perform a direct comparison.
 
+\pagebreak
 # References
