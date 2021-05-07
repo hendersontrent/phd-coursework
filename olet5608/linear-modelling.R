@@ -335,7 +335,7 @@ range(m2$w)
 # Generalised additive model
 #---------------------------
 
-thecols <- colnames(aflScaled)[-c(2)]
+thecols <- colnames(aflScaled)[-c(1)]
 gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
 gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
 
