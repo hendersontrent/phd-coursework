@@ -196,16 +196,32 @@ standardised (z-scored) prior to modelling. This also means the
 coefficients will have an intuitive interpretation compared to other
 rescaling methods.
 
-\begin{table}[!htbp] \centering 
-  \caption{} 
-  \label{} 
-\begin{tabular}{@{\extracolsep{5pt}}lccccccc} 
-\\[-1.8ex]\hline 
-\hline \\[-1.8ex] 
-Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Pctl(25)} & \multicolumn{1}{c}{Pctl(75)} & \multicolumn{1}{c}{Max} \\ 
-\hline \\[-1.8ex] 
-\hline \\[-1.8ex] 
-\end{tabular} 
+\% latex table generated in R 4.0.2 by xtable 1.8-4 package \% Sat May 8
+19:53:06 2021
+
+\begin{table}[ht]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{lrrrrrrrrrr}
+ \textbf{Variable} & $\mathbf{n}$ & \textbf{Min} & $\mathbf{q_1}$ & $\mathbf{\widetilde{x}}$ & $\mathbf{\bar{x}}$ & $\mathbf{q_3}$ & \textbf{Max} & $\mathbf{s}$ & \textbf{IQR} & \textbf{\#NA} \\ 
+  \hline
+score & 5652 & 13 &  70 &  88 &  90.3 & 108 & 233 & 27.9 & 38 & 0 \\ 
+  marks & 5652 & 21 &  79 &  93 &  93.5 & 107 & 181 & 21.1 & 28 & 0 \\ 
+  handballs & 5652 & 58 & 134 & 155 & 155.5 & 175 & 297 & 30.6 & 41 & 0 \\ 
+  hit\_outs & 5652 &  4 &  29 &  36 &  37.2 &  44 &  89 & 11.0 & 15 & 0 \\ 
+  tackles & 5652 & 17 &  51 &  61 &  61.6 &  71 & 155 & 15.1 & 20 & 0 \\ 
+  rebounds & 5652 & 12 &  30 &  35 &  34.9 &  39 &  65 &  6.9 &  9 & 0 \\ 
+  inside\_50s & 5652 & 17 &  45 &  51 &  51.0 &  57 &  83 &  8.5 & 12 & 0 \\ 
+  clearances & 5652 & 14 &  31 &  35 &  35.8 &  40 &  71 &  6.9 &  9 & 0 \\ 
+  clangers & 5652 & 21 &  41 &  47 &  47.5 &  53 &  89 &  8.8 & 12 & 0 \\ 
+  frees\_for & 5652 &  4 &  15 &  18 &  18.6 &  22 &  38 &  4.8 &  7 & 0 \\ 
+  contested\_possessions & 5652 & 78 & 120 & 133 & 133.5 & 146 & 213 & 18.7 & 26 & 0 \\ 
+  contested\_marks & 5652 &  0 &   8 &  10 &  10.7 &  13 &  27 &  4.0 &  5 & 0 \\ 
+  marks\_inside\_50 & 5652 &  0 &   9 &  12 &  12.3 &  15 &  38 &  4.8 &  6 & 0 \\ 
+  \end{tabular}
+\endgroup
+\caption{Descriptive statistics for all quantitative variables.} 
+\label{}
 \end{table}
 
 \hypertarget{model-fitting}{%
@@ -368,6 +384,24 @@ overall model is statistically significant, \emph{F} = 676.7 (\emph{df}
 = 12; 5639), and explains approximately 59\% of the observed variance in
 scores.
 
+Hit outs (\emph{t} = -0.896, \emph{p} = 0.371), contested possessions
+(\emph{t} = 1.94, \emph{p} = 0.053) and contested marks (\emph{t} = 1.1,
+\emph{p} = 0.266) were the only three statistically non-significant
+predictors. Of the remaining predictors, two were negative and
+statistically significant. These included tackles (\emph{t} = -4.1,
+\emph{p} \textless{} .001) and clangers (\emph{t} = -15.4, \emph{p}
+\textless{} .001), such that a one standard deviation increase in
+tackles is associated with mean reduction of 1.2 in total score, and a
+one standard deviation increase in clangers is associated with mean
+reduction of 4.1 in total score. On the positive predictors, the two
+with the strongest coefficients are mechanically related in terms of AFL
+gameplay: inside 50s (\emph{t} = 27.91, \emph{p} \textless{} .001) and
+marks inside 50 (\emph{t} = 37.7, \emph{p} \textless{} .001). The
+magnitude of both these predictors is noteworthy, as a one standard
+deviation increase in inside 50s is associated with a mean increase of
+9.3 in total score, and a one standard deviation increase in marks
+inside 50 is associated with a mean increase of 12.1 in total score.
+
 \begin{table}[!htbp] \centering 
   \caption{} 
   \label{} 
@@ -431,24 +465,6 @@ F Statistic & 676.676$^{***}$ (df = 12; 5639) &  \\
 \textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.05; $^{**}$p$<$0.01; $^{***}$p$<$0.001} \\ 
 \end{tabular} 
 \end{table}
-
-Evidently, hit outs (\emph{t} = -0.896, \emph{p} = 0.371), contested
-possessions (\emph{t} = 1.94, \emph{p} = 0.053) and contested marks
-(\emph{t} = 1.1, \emph{p} = 0.266) were the only three non-significant
-predictors. Of the remaining predictors, two were negative and
-statistically significant. These included tackles (\emph{t} = -4.1,
-\emph{p} \textless{} .001) and clangers (\emph{t} = -15.4, \emph{p}
-\textless{} .001), such that a one standard deviation increase in
-tackles is associated with mean reduction of 1.2 in total score, and a
-one standard deviation increase in clangers is associated with mean
-reduction of 4.1 in total score. On the positive predictors, the two
-with the strongest coefficients are mechanically related in terms of AFL
-gameplay: inside 50s (\emph{t} = 27.91, \emph{p} \textless{} .001) and
-marks inside 50 (\emph{t} = 37.7, \emph{p} \textless{} .001). The
-magnitude of both these predictors is noteworthy, as a one standard
-deviation increase in inside 50s is associated with a mean increase of
-9.3 in total score, and a one standard deviation increase in marks
-inside 50 is associated with a mean increase of 12.1 in total score.
 
 \hypertarget{discussion}{%
 \section{Discussion}\label{discussion}}

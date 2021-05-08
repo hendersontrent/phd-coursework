@@ -23,10 +23,10 @@ library(fitzRoy)
 library(MASS)
 library(Cairo)
 library(ggfortify)
-library(xtable)
 library(parameters)
 library(lmtest)
 library(sandwich)
+library(reporttools)
 
 # Pull AFL data for 2005-2019
 # NOTE: Ignoring 2020 as it was an anomalous season played almost entirely in QLD,
@@ -173,7 +173,7 @@ aggregated %>%
 The data were further explored using high-level summary statistics. These are presented below in Table \@ref(tab:summarystats). Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling. This also means the coefficients will have an intuitive interpretation compared to other rescaling methods.
 
 ```{r summarystats, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
-stargazer::stargazer(aggregated, type = "latex", header = FALSE)
+tableContinuous(as.data.frame(aggregated), longtable = FALSE, header = FALSE, cap = "Descriptive statistics for all quantitative variables.")
 ```
 
 ## Model fitting
@@ -279,14 +279,14 @@ The weight vector is then factored into the matrix decomposition to solve the li
 
 Coefficients and model outputs are presented below in Table \@ref(tab:coeftable) where the first column of the dependent variable section is the standard OLS model and the second column is the heteroscedastic-robust correction. Intepretation will focus on the robust estimators, given the violation of homoscedasticity. For each predictor, coefficients, standard errors, *t*-statistics, and *p*-values are reported. Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 59% of the observed variance in scores.
 
+Hit outs (*t* = -0.896, *p* = 0.371), contested possessions (*t* = 1.94, *p* = 0.053) and contested marks (*t* = 1.1, *p* = 0.266) were the only three statistically non-significant predictors. Of the remaining predictors, two were negative and statistically significant. These included tackles (*t* = -4.1, *p* < .001) and clangers (*t* = -15.4, *p* < .001), such that a one standard deviation increase in tackles is associated with mean reduction of 1.2 in total score, and a one standard deviation increase in clangers is associated with mean reduction of 4.1 in total score. On the positive predictors, the two with the strongest coefficients are mechanically related in terms of AFL gameplay: inside 50s (*t* = 27.91, *p* < .001) and marks inside 50 (*t* = 37.7, *p* < .001). The magnitude of both these predictors is noteworthy, as a one standard deviation increase in inside 50s is associated with a mean increase of 9.3 in total score, and a one standard deviation increase in marks inside 50 is associated with a mean increase of 12.1 in total score.
+
 ```{r coeftable, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
 stargazer::stargazer(m,
                      coeftest(m, vcovHC(m, type = "HC3")), report = ("vcst*p"),
                      type = "latex", header = FALSE, ci = TRUE, ci.level = 0.95, single.row = TRUE, 
                      star.cutoffs = c(0.05, 0.01, 0.001))
 ```
-
-Evidently, hit outs (*t* = -0.896, *p* = 0.371), contested possessions (*t* = 1.94, *p* = 0.053) and contested marks (*t* = 1.1, *p* = 0.266) were the only three non-significant predictors. Of the remaining predictors, two were negative and statistically significant. These included tackles (*t* = -4.1, *p* < .001) and clangers (*t* = -15.4, *p* < .001), such that a one standard deviation increase in tackles is associated with mean reduction of 1.2 in total score, and a one standard deviation increase in clangers is associated with mean reduction of 4.1 in total score. On the positive predictors, the two with the strongest coefficients are mechanically related in terms of AFL gameplay: inside 50s (*t* = 27.91, *p* < .001) and marks inside 50 (*t* = 37.7, *p* < .001). The magnitude of both these predictors is noteworthy, as a one standard deviation increase in inside 50s is associated with a mean increase of 9.3 in total score, and a one standard deviation increase in marks inside 50 is associated with a mean increase of 12.1 in total score.
 
 # Discussion
 
