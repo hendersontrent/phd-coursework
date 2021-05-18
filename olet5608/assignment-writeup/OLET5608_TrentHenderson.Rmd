@@ -5,13 +5,15 @@ authors:
     affiliation: OLET5608
     email: then6675@uni.sydney.edu.au
 abstract: |
-  AFL is a highly-popular Australian sport that has garnered a lot of talk show attention, but suffers from a lack of statistical rigour. The present report sought to bridge this gap by providing a statistically robust exploration of predictors of scoring using data aggregated at the team and match level. A regression approach was adopted through the use of a hetereoscedastic-robust ordinary least squares model. Results found that hit outs contested possessions, and contested marks did not significantly predict scoring, tackles and unforced errors singificantly and negatively predicted scoring, and rebounds, marks inside 50, marks, inside 50s, handballs, free kicks for, and clearances all significantly and positively predicted scoring. Implications for coaching and gameplay strategy, as well as limitations are discussed.
-keywords: "linear modelling, AFL, heteroscedasticity"
+  AFL is a highly-popular Australian sport that has garnered a lot of talk show attention, but suffers from a lack of statistical rigour. The present report seeks to bridge this gap by providing a statistically robust exploration of predictors of scoring using data aggregated at the team and match level from the 2005-2019 seasons inclusive. An ordinary least squares regression model was used with preliminary exploration of a more sophisticated generalised additive approach. Robust variance-covariance matrix estimators were used due to the presence of mild heteroscedasticity. Results found that hit outs contested possessions, and contested marks did not significantly predict scoring, tackles and unforced errors singificantly and negatively predicted scoring, and rebounds, marks inside 50, marks, inside 50s, handballs, free kicks for, and clearances all significantly and positively predicted scoring. Implications for coaching and gameplay strategy as well as limitations are discussed.
+keywords: "linear modelling, AFL, heteroscedasticity, robust estimation"
 bibliography: references.bib
 biblio-style: unsrt
-output: 
-  rticles::arxiv_article:
+output:
+  bookdown::pdf_book:
+    base_format: rticles::arxiv_article
     keep_tex: true
+    extra_dependencies: amsmath
 ---
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -59,9 +61,9 @@ the_finals <- c("EF", "SF", "QF", "PF", "GF")
 
 # Introduction
 
-AFL is a highly popular Australian sports league that began in 1896 and continues strongly today, with Grand Final match attendance (outside of the anomalous COID-19-impacted 2020 season) approximating a sold out 100,000 each year at the traditional host venue - the Melbourne Cricket Ground. An AFL match is won based on points, which can be accumulated by kicking either a goal (worth six points) or a behind (worth one point). Despite its popularity and complexity, AFL is a sport that has traditionally relied on subject matter expertise and the knowledge of past players to inform coaching strategies. Much like other Australian sports, a lack of empirical statistical sophistication is evident.
+AFL is a highly popular Australian sports league that began in 1896 and continues strongly today, with Grand Final match attendance (outside of the anomalous COID-19-impacted 2020 season) approximating a sold out 100,000 each year at the traditional host venue - the Melbourne Cricket Ground [@attendance]. An AFL match is won based on points, which can be accumulated by kicking either a goal (worth six points) or a behind (worth one point). Despite its popularity and complexity, AFL is a sport that has traditionally relied on subject matter expertise and the knowledge of past players to inform coaching strategies. Much like other Australian sports, a lack of empirical statistical sophistication is evident.
 
-Globally, sport analytics has continued to generate increasing attention, with websites such as FiveThirtyEight and Advanced Sports Analytics creating stylish platforms that constitute a reliable source of insight and interactive analysis. However, this form of innovative and detailed sports analytics has yet to fully breach Australian sports. While the AFL has dedicated talk show analysis television programs such as AFL 360, The Front Bar, and Talking Footy, these programs focus mostly on qualitative breakdowns of high-level match statistics and not on statistical rigour. This report aims to bridge some of this gap by providing a preliminary statistical investigation of factors associated with scoring in the AFL. Specifically, this report aims to explore the following research question: *Which gameplay attributes are predictors of scores in AFL matches?*
+Globally, sports analytics has continued to generate increasing attention, with websites such as FiveThirtyEight and Advanced Sports Analytics creating stylish platforms that constitute a reliable source of insight and interactive analysis. However, this form of innovative and detailed analysis has yet to fully permeate Australian sports. While the AFL has many dedicated talk show analysis television programs such as AFL 360, The Front Bar, and Talking Footy, these programs focus mostly on qualitative breakdowns of high-level descriptive statistics and not on statistical rigour. This report aims to bridge some of this gap by providing a preliminary statistical investigation of factors associated with scoring in the AFL. Specifically, this report aims to explore the following research question: *Which gameplay attributes are predictors of scores in AFL matches?*
 
 # Data set
 
@@ -74,15 +76,15 @@ Historical AFL data has been made readily-accessible in an open-source setting t
   \item{FootyWire}
 \end{itemize}
 
-The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2005-2019 seasons, inclusive. This time period is partially arbitrary, but was made on the basis of recency and potential homogeneity. The 2020 season is a strong counter example of this where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19. This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
+The data itself is diverse, covering domains as broad as player and match statistics, Brownlow medal votes, betting odds, attendance numbers, and match times. This report focuses on player and match statistics by aggregating quantities of interest to team-per-match-level sums using data for the 2005-2019 seasons, inclusive. This time period is somewhat arbitrary, but was made on the basis of wanting a large sample size while balancing recency and homogeneity. The 2020 season is a strong counter example of this, where the season length was truncated and played almost entirely in Queensland due to the impacts of COVID-19. This means the standard set up of games - having a home and away team - was not normal in 2020 and thus data for the entire season may represent a heterogenous set.
 
 ## Data limitations
 
-Despite the availability of so much player-level data, the author of the `fitzRoy` package and the creators of the sources it pulls from (listed above) all note potential caveats around their data. The main caveat is that the data is not official. Each source pulls from multiple others, and many individual people are involved in the continual updating of information. The accuracy of the data in `fitzRoy` is largely contingent on the accuracy of the sources underpinning the websites it scraped. While this is cause for concern, there are a large number of industry-standard sources that comprise the majority of the data used in this report, including official statistics produced by the AFL, newspapers and magazines (such as The Herald Sun and Inside Football), and official books (such as @everyone and @everygame). The open-source nature of many of the sources, especially AFL Tables, means continual improvement and accuracy is being achieved, further lending confidence to the available data.
+Despite the availability of so much player-level data, the author of the `fitzRoy` package and the creators of the sources it pulls from all note potential caveats around their data. The main caveat is that the data is not official. Each source pulls from multiple others, and many individual people are involved in the continual updating of information. The accuracy of the data in `fitzRoy` is largely contingent on the accuracy of the sources underpinning the websites it scraped. While this is cause for concern, there are a large number of industry-standard sources that comprise the majority of the data used in this report, including official statistics produced by the AFL, newspapers and magazines (such as The Herald Sun and Inside Football), and official books (such as @everyone and @everygame). The open-source nature of many of the sources, especially AFL Tables, means continual improvement and accuracy is being achieved, further lending confidence to the available data.
 
 ## Variable retention
 
-A small subset of variables were retained from the much larger dataset. The subset was developed based on the author's subject matter expertise of AFL. The variables retained were selected based on their likely relationship to a team's ability to score and whether a team could implement a training or coaching intervention off the back of this analysis to better target the predictors. For example, the variable *free kicks against* was not included, as the number of free kicks given away by a team is not a core contributor to the same team scoring, and it is likely near impossible to coach out of the game.
+A small subset of variables were retained from the much larger dataset. The subset was developed based on the author's subject matter expertise of AFL. The variables retained were selected based on their likely relationship to a team's ability to score and whether a team could implement a training or coaching intervention off the back of this analysis to better target important predictors. For example, the variable *free kicks against* was not included, as the number of free kicks given away by a team is not a core contributor to that team scoring, and it is likely near impossible to coach out of their game.
 
 The variables that were retained for the purposes of this analysis included team-match-level counts of scores, marks, handballs, hit outs, tackles, rebounds, inside 50s, clearances, clangers (unforced errors), free kicks for, contested possessions, contested marks, and marks inside 50.
 
@@ -91,15 +93,11 @@ The variables that were retained for the purposes of this analysis included team
 A rigorous and detailed linear modelling pipeline was implemented. This involved the following steps, each of which will be discussed in turn:
 
 1. Exploratory data analysis and visualisation
-3. Model fitting
-4. Model assumption testing
-5. Model re-specification (if required)
-6. Model interpretation
-7. Preliminary advanced model exploration
+2. Model fitting and assumption testing
 
 ## Exploratory data analysis and visualisation
 
-Prior to modelling, the data were aggregated and explored visually and numerically to understand the empirical structure. The data was aggregated to match-level sums for each time by summing over individual player statistics. Figure \@ref(fig:distplot) below shows the distributions of each aggregated quantitative variable.
+Prior to modelling, the data were aggregated and explored visually and numerically to understand the empirical structure. The data was aggregated to match-level sums for each time by summing over individual player statistics. Matches outside of regular season games (i.e. finals) were removed before any analysis as finals likely represent a heterogenous set. Figure \@ref(fig:distplot) shows the distributions of each aggregated quantitative variable.
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 # Aggregate over each team and match for some key variables of interest
@@ -173,18 +171,16 @@ aggregated %>%
 The data were further explored using high-level summary statistics. These are presented below in Table \@ref(tab:summarystats). Note the large difference in scales between the variables. To avoid issues with high-variance predictors influencing linear modelling or producing extremely low coefficients, all predictors were mean-centred and standardised (z-scored) prior to modelling. This also means the coefficients will have an intuitive interpretation compared to other rescaling methods.
 
 ```{r summarystats, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
-tableContinuous(as.data.frame(aggregated), longtable = FALSE, header = FALSE, cap = "Descriptive statistics for all quantitative variables.")
+options(xtable.comment = FALSE)
+tableContinuous(as.data.frame(aggregated), longtable = FALSE, header = FALSE, 
+                lab = "tab:summarystats", cap = "Descriptive statistics for all quantitative variables")
 ```
 
-## Model fitting
-
-A detailed linear model fitting process was undertaken, and included specification of initial models, assessment of diagnostics, and re-specification of the model. Details are presented in the following sections.
+## Model fitting and assumption testing
 
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 m <- lm(score ~ ., data = aflScaled)
 ```
-
-## Model assumption testing
 
 There are four core assumptions of linear regression model [@R:Faraway:2004]. These include:
 
@@ -253,60 +249,73 @@ viftab <- olsrr::ols_vif_tol(m) %>%
   mutate(Tolerance = round(Tolerance, digits = 3),
          VIF = round(VIF, digits = 3))
 
-viftab2 <- xtable(viftab)
-print(viftab2, comment = FALSE)
+print(xtable(viftab, label = "tab:vif", caption = "Variance inflation factor and tolerance estimates", comment = FALSE))
 ```
 
 ### Normality of residuals
 
-Normality of residuals is typically assessed graphically using a Q-Q plot, as seen in the upper right graphic in the matrix presented below A model with normally-distributed residuals should lie directly on the diagonal line. The residuals are almost entirely positioned on the line with very little variation at the ends indicating no issues with normality.
+Normality of residuals is typically assessed graphically using a Q-Q plot, as seen in the upper right graphic in Figure \@ref(fig:diagnostics) presented below. A model with normally-distributed residuals should lie directly on the diagonal line. The residuals are almost entirely positioned on the line with very little variation at the ends indicating no issues with normality.
 
-```{r, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Linear model diagnostic plots"}
+```{r diagnostics, warning = FALSE, message = FALSE, echo = FALSE, fig.keep = TRUE, fig.width = 6, fig.height = 4, fig.cap = "Linear model diagnostic plots"}
 autoplot(m, which = 1:4)
 ```
 
 ### Homogeneity of variance
 
-Homoegeneity of variance - the lack of a systematic pattern or bias of residuals across model fitted or predictor values - is another core linear model assumption. This assumption is typically assessed graphically using a residuals plot, where fitted values are plotted against model residuals. A model with homogeneity of variance should have no discernible pattern across the fitted values. This plot is depicted in the upper left in the graphics matrix above
+Homoegeneity of variance - the lack of a systematic pattern or bias of residuals across model fitted or predictor values - is another core linear model assumption. This assumption is typically assessed graphically using a residuals plot, where fitted values are plotted against model residuals. A model with homogeneity of variance should have no discernible pattern across the fitted values. This plot is depicted in the upper left in Figure \@ref(fig:diagnostics) above.
 
 Evidently, there is a quadratic-shaped sag in the line through this plot, indicating heteroscedasticity. It was first hypothesised that potential outliers might be influencing the results, despite the lack of compelling visual evidence of leverage based on the Cook's distance plot. Following advice from [@R:Faraway:2004], a test of the maximum studentised residual value against a Bonferroni-corrected critical value. Since the maximum residual value of 4.14 was less than the critical value of 4.45, it was declared that outliers were not a major issue. 
 
 Heteroscedasticity is a major issue for linear models. As a response to this initial violation, two follow-up models were specified: a weighted ordinary least squares (OLS) model, and an OLS with a square root transformed response variable. The weighted OLS model works by computing weights for each datapoint included, calculated by the inverse of squared fitted values from a linear regression of the absolute residuals of the original model as the response variable, and the fitted values of the original model as the predictor.
 
-The weight vector is then factored into the matrix decomposition to solve the linear regression problem. Neither of these two models fixed the heteroscedasticity violation in the present study, and the square root transform actually introduced violations in other core assumptions, particularly normality of residuals. As a solution, a heteroscedastic-robust estimator was used, which produces robust estimations of standard errors, test statistics, and *p*-values. Robust estimators are implemented in `R` using the `sandwich` package [@JSSv011i10; @JSSv095i01]. The estimators work by introducing a new term, $\Omega$, that acts on the diagonal of the variance-covariance matrix, and relaxes the assumption of homogeneity. The inclusion of heteroscedastic-robust estimators reduces the size of test statistics, drives significance values away from zero, and increases standard errors to reflect the variance structure of the data.
+The weight vector is then factored into the matrix decomposition to solve the linear regression problem. Neither of these two models fixed the heteroscedasticity violation in the present study, and the square root transform actually introduced violations in other core assumptions, particularly normality of residuals. As a solution, a heteroscedastic-robust estimator was used, which produces robust estimations of standard errors, test statistics, and *p*-values. Robust estimators are implemented in `R` using the `sandwich` package [@JSSv011i10; @JSSv095i01]. The estimators work by introducing a new term, $\Omega$, that flexibly acts on the diagonal of the variance-covariance matrix, and relaxes the assumption of homogeneity by enabling differing variances along the matrix diagonal (see Equation \@ref(eq:vcov) and \@ref(eq:omega)). The inclusion of heteroscedastic-robust estimators reduces the size of test statistics, drives significance values away from zero, and increases standard errors to reflect the variance structure of the data.
+
+\begin{equation}
+(X^{'}X)^{-1}X^{'}\Omega X (X^{'}X)^{-1} (\#eq:vcov)
+\end{equation}
+
+\begin{equation}
+\Omega = \sigma^{2}I_{n} (\#eq:omega)
+\end{equation}
+
+Numerous $\Omega$ options are available in the `sandwich` package. Most of the options returned negligibly different values for the present analysis, so the default `HC3` parameter was retained. It is defined according to Equation \@ref(eq:hc3).
+
+\begin{equation}
+HC3 = \frac{\mu^{2}_{\hat{i}}}{(1-h_{i})^{2}} (\#eq:hc3)
+\end{equation}
 
 # Results
 
-Coefficients and model outputs are presented below in Table \@ref(tab:coeftable) where the first column of the dependent variable section is the standard OLS model and the second column is the heteroscedastic-robust correction. Intepretation will focus on the robust estimators, given the violation of homoscedasticity. For each predictor, coefficients, standard errors, *t*-statistics, and *p*-values are reported. Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the change in total score (response variable) for a one standard deviation change (increase or decrease, depending on sign of the coefficient) in the predictor*. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 59% of the observed variance in scores.
+Coefficients and model outputs are presented in Table \@ref(tab:coeftable) where the first column of the dependent variable section is the standard OLS model and the second column is the heteroscedastic-robust correction. Intepretation will focus on the robust estimators, given the violation of homoscedasticity. For each predictor, coefficients, standard errors, *t*-statistics, and *p*-values are reported. Since all predictors were mean-centred and standardised (z-scored) prior to analysis, the interpretation is as follows: *the coefficient represents the expected change in total score (response variable) for a one standard deviation change in the predictor*. The overall model is statistically significant, *F* = 676.7 (*df* = 12; 5639), and explains approximately 59% of the observed variance in scores.
 
-Hit outs (*t* = -0.896, *p* = 0.371), contested possessions (*t* = 1.94, *p* = 0.053) and contested marks (*t* = 1.1, *p* = 0.266) were the only three statistically non-significant predictors. Of the remaining predictors, two were negative and statistically significant. These included tackles (*t* = -4.1, *p* < .001) and clangers (*t* = -15.4, *p* < .001), such that a one standard deviation increase in tackles is associated with mean reduction of 1.2 in total score, and a one standard deviation increase in clangers is associated with mean reduction of 4.1 in total score. On the positive predictors, the two with the strongest coefficients are mechanically related in terms of AFL gameplay: inside 50s (*t* = 27.91, *p* < .001) and marks inside 50 (*t* = 37.7, *p* < .001). The magnitude of both these predictors is noteworthy, as a one standard deviation increase in inside 50s is associated with a mean increase of 9.3 in total score, and a one standard deviation increase in marks inside 50 is associated with a mean increase of 12.1 in total score.
+Hit outs (*t* = -0.896, *p* = 0.371), contested possessions (*t* = 1.94, *p* = 0.053) and contested marks (*t* = 1.1, *p* = 0.266) were the only three statistically non-significant predictors. Of the remaining predictors, two were negative and statistically significant. These included tackles (*t* = -4.1, *p* < .001) and clangers (*t* = -15.4, *p* < .001), such that a one standard deviation increase in tackles is associated with mean reduction of 1.2 in total score, and a one standard deviation increase in clangers is associated with mean reduction of 4.1 in total score. For the positive predictors, the two with the strongest coefficients are mechanically related in terms of AFL gameplay: inside 50s (*t* = 27.91, *p* < .001) and marks inside 50 (*t* = 37.7, *p* < .001). The magnitude of both these predictors is noteworthy, as a one standard deviation increase in inside 50s is associated with a mean increase of 9.3 in total score, and a one standard deviation increase in marks inside 50 is associated with a mean increase of 12.1 in total score. The remaining positive predictors are presented in Table \@ref(tab:coeftable) below.
 
-```{r coeftable, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
+```{r, warning = FALSE, message = FALSE, echo = FALSE, results = 'asis'}
 stargazer::stargazer(m,
                      coeftest(m, vcovHC(m, type = "HC3")), report = ("vcst*p"),
-                     type = "latex", header = FALSE, ci = TRUE, ci.level = 0.95, single.row = TRUE, 
-                     star.cutoffs = c(0.05, 0.01, 0.001))
+                     type = "latex", header = FALSE, ci = TRUE, ci.level = 0.95, single.row = TRUE, label = "tab:coeftable",
+                     star.cutoffs = c(0.05, 0.01, 0.001), title = "Model coefficients, confidence intervals, and signifiance tests")
 ```
 
 # Discussion
 
-The present analysis aimed to produce an innovative and statistically robust exploration of predictors of scoring in the AFL using team-per-match-level data accessed through the `R` package `fitzRoy`. While not causal, the analysis sought to quantify the type and magnitude of any relationships with end-of-match scores.
+The present analysis aimed to produce an innovative and statistically robust exploration of predictors of scoring in the AFL using team-per-match-level data for the 2005-2019 seasons inclusive accessed through the `R` package `fitzRoy`. While not necessarily causal, the analysis sought to quantify the type and magnitude of any relationships with end-of-match scores.
 
 ## Implications for AFL teams
 
-This report found some potentially informative relationships regarding scoring in the AFL that teams may seek to consider. First, teams should seek to deeply understand their potential to generate opportunities within the fifty-metre circle in front of goal. The analysis strongly supports this recommendation, as increases in either or both of inside 50s and marks inside 50 is associated with a very substantial increase in total score. From a gameplay sense this is intuitive, as being closer to goal with possession of the ball would increase the likelihood of scoring, and a mark inside 50 means a guaranteed set shot (uninterrupted free shot) at goal, further increasingly the likelihood of kicking a six-point goal.
+This report found some potentially informative relationships regarding scoring in the AFL that teams may seek to consider. First, teams should seek to deeply understand their potential to generate opportunities within the fifty-metre circle in front of goal. The analysis strongly supports this recommendation, as increases in inside 50s and marks inside 50 is associated with a very substantial increase in total score. From a gameplay sense this is intuitive, as being closer to goal with possession of the ball would increase the likelihood of scoring, and a mark inside 50 means a guaranteed uninterrupted set shot at goal, further increasingly the likelihood of kicking a six-point goal.
 
 Second, teams should also consider the importance of clearances. The strong positive association found between clearances and scores was surprising. This is because clearances involve a team kicking the ball away from their own goal area, which is a heavily defensive statistic. The positive relationship may suggest that the opposition team was unsuccessful in scoring on multiple occasions, and so the team could take advantage of converting a successful defense into attacking opportunities of their own.
 
-Third, teams should be cautious not to interpret the causal direction of some of the relationships uncovered in this report. The negative relationship between tackles and scores is a strong example of this. It is not necessarily the case that tackling less directly results in higher scores at the end of a match. It is far more likely that teams who score more (therefore more likely winning more) are just more defensively efficient or spend more time attacking rather than defending. Both of these characteristics would manifest as noticeably lower tackle counts.
+Third, teams should be cautious not to interpret the causal direction of some of the relationships presented in this report. The negative relationship between tackles and scores is one such example. It is not necessarily the case that tackling less directly results in higher scores at the end of a match. It is far more likely that teams who score more (therefore more likely winning more) are just more defensively efficient or spend more time attacking rather than defending. Both of these characteristics would manifest as noticeably lower tackle counts.
 
 ## Limitations
 
-Despite the potentially informative findings, there were some limitations with the analysis. The first, as described earlier, is that the data is not official, and therefore its accuracy is unknown. However, it remains likely that the data quality is high, given that some of the underlying sources are official and published material and that the project is open-source with contributions for numerous high-profile researchers and analysts.
+Despite the potentially informative findings, there were some limitations with the analysis. The first, as described earlier, is that the data is not official, and therefore its accuracy is unknown. It is likely that the data quality is high, given that some of the underlying sources are official and published material and that the project is open-source with contributions for numerous high-profile researchers and analysts.
 
-A second limitation is that of variable selection. The variables included in this analysis were selected based on subject matter expertise and prior knowledge of AFL on behalf of the author. However, these variables only explained roughly sixty per cent of the variance in match scores. It is highly likely that the addition of more variables included in the larger dataset of approximately sixty variables would help drive this number closer to a more respectable percentage, such as eighty or ninety per cent. Since factor variables are included in this broader set, their inclusion raises some interesting questions around interaction terms. For example, future research may seek to fit interaction terms by team, or by home versus away, to better understand the dynamics of AFL metrics on match scores. Of course, the inclusion of more covariates, especially large numbers of them, may raise serious issues around multicollinearity or other model assumptions. Researchers may seek to account for this by first applying variable selection procedures such as Lasso regression [@https://doi.org/10.1111/j.2517-6161.1996.tb02080.x].
+A second limitation is that of variable selection. The variables included in this analysis were selected based on the author's subject matter expertise and prior knowledge of AFL. However, these variables only explained roughly sixty per cent of the variance in match scores. It is highly likely that the addition of more variables included in the larger dataset of approximately sixty variables would help drive this number closer to a more respectable percentage, such as eighty or ninety per cent. Since factor variables are included in the broader dataset, their inclusion raises some interesting questions around interaction terms. For example, future research may seek to fit interaction terms by team, or by home versus away, to better understand the dynamics of AFL metrics on match scores. Of course, the inclusion of more covariates, especially large numbers of them, may raise serious issues around multicollinearity or other model assumptions. Researchers may seek to account for this by first applying variable selection procedures such as Lasso regression [@https://doi.org/10.1111/j.2517-6161.1996.tb02080.x] or principal components analysis.
 
-A third limitation is that of model selection. It remains unclear whether an ordinary least squares regression approach is the optimal modelling technique for this data. Preliminary follow-up analysis undertaken by the author revealed that a generalised additive model [@10.1214/ss/1177013604; @wood; @mgcv] - a model that linearly adds estimated smooth functions using splines over each covariate - produced a better model fit at a lower Akaike information criterion [@10.1080/10635150490522304]. Further, since the response variable is a non-zero count, it may be more appropriate to consider a generalised linear model with a link function appropriate to an integer response, such as a Poisson or negative binomial-distributed model. The added benefit of these models is that they correctly model the response as a discrete-valued probability mass function, instead of the probability density function assumed by a Gaussian linear model (if a maximum likelihood and not ordinary least squares approach is taken to solving the regression problem). Future research should aim to consider these modelling options, and potentially even perform a direct comparison.
+A third limitation is that of model selection. It remains unclear whether an ordinary least squares regression approach is the optimal modelling technique for this data. Preliminary follow-up analysis undertaken by the author revealed that a generalised additive model [@10.1214/ss/1177013604; @wood; @mgcv] - a model that linearly adds estimated smooth functions using splines over each covariate - produced a better model fit at a lower Akaike information criterion [@10.1080/10635150490522304]. Further, since the response variable is a non-zero count, it may be more appropriate to consider a generalised linear model with a link function appropriate to an integer response, such as a Poisson or negative binomial-distributed model. The added benefit of these models is that they correctly model the response as a discrete-valued probability mass function, instead of the probability density function assumed by a Gaussian linear model (if a maximum likelihood and not ordinary least squares approach is taken). Future research should aim to consider these modelling options, and potentially even perform a direct comparison.
 
 \pagebreak
 # References
