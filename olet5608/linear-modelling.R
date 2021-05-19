@@ -171,7 +171,7 @@ draw_plot <- function(data, cols, y, robust = FALSE){
   }
   
   p <- p +
-    labs(subtitle = "Data is at the team and match level for all non-finals games in seasons 2010-2019 inclusive.",
+    labs(subtitle = "Data is at the team and match level for all non-finals games in seasons 2005-2019 inclusive.",
          x = "Predictor Value",
          y = "Total Score per Team per Match") +
     facet_wrap(~covariates, scales = "free_x")
