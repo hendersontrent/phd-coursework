@@ -217,6 +217,13 @@ dev.off()
 
 m <- lm(score ~ ., data = aflScaled)
 
+# Base OLS model with dropped non-sig predictors
+
+aflScaled2 <- aflScaled %>%
+  dplyr::select(-c(contested_marks, hit_outs))
+
+mAlt <- lm(score ~ ., data = aflScaled2)
+
 # With polynomial second-order terms
 
 m1 <- lm(score ~ marks + handballs + hit_outs + tackles + rebounds + inside_50s + I(inside_50s^2) +
@@ -229,35 +236,35 @@ m2 <- lm(sqrt(score) ~ ., data = aflScaled)
 
 # Weighted OLS
 
-wt <- 1 / lm(abs(m$residuals) ~ m$fitted.values)$fitted.values^2
+wt <- 1 / lm(abs(mAlt$residuals) ~ mAlt$fitted.values)$fitted.values^2
 m3 <- lm(score ~ ., weights = wt, data = aflScaled)
 
 # Heteroscedastic-robust standard errors of base OLS
 
-lmtest::bptest(m) # Breush-Pagan test for heteroscedasticity
+lmtest::bptest(mAlt) # Breush-Pagan test for heteroscedasticity
 
 # Robust test statistics
 
-sjPlot::tab_model(m, vcov.fun = "HC", show.se = TRUE)
+sjPlot::tab_model(mAlt, vcov.fun = "HC", show.se = TRUE)
 
 #------------------
 # Multicollinearity
 #------------------
 
-olsrr::ols_vif_tol(m) # All values are far lower than common thresholds, suggesting no issue
+olsrr::ols_vif_tol(mAlt) # All values are far lower than common thresholds, suggesting no issue
 
 #-----------------------
 # Retrieve model summary
 #-----------------------
 
-summary(m)
+summary(mAlt)
 
 # Plot version
 
-coefs <- as.data.frame(coef(summary(m))) %>%
+coefs <- as.data.frame(coef(summary(mAlt))) %>%
   tibble::rownames_to_column()
 
-confints <- as.data.frame(confint(m)) %>%
+confints <- as.data.frame(confint(mAlt)) %>%
   tibble::rownames_to_column()
 
 coefs <- coefs %>%
@@ -270,7 +277,6 @@ coefs <- coefs %>%
          lower < 0 & upper < 0 ~ "Significant & Negative",
          lower < 0 & upper > 0 ~ "Not Significant",
          lower > 0 & upper > 0 ~ "Significant & Positive")) %>%
-  mutate(category = ifelse(variable == "contested_possessions", "Not Significant", category)) %>%
   mutate(category = factor(category, levels = c("Significant & Negative", "Not Significant", "Significant & Positive")))
 
 mypal <- c("Significant & Negative" = "#f95d6a",
@@ -363,9 +369,9 @@ range(m2$w)
 # Generalised additive model
 #---------------------------
 
-thecols <- colnames(aflScaled)[-c(1)]
+thecols <- colnames(aflScaled2)[-c(1)]
 gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
-m5 <- gam(formula = gamformula, data = aflScaled, method = "REML")
+m5 <- gam(formula = gamformula, data = aflScaled2, method = "REML")
 
 m5_het <- gam(formula = gamformula, data = aflScaled, method = "REML", family = gaulss())
 
