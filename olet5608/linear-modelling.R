@@ -302,6 +302,22 @@ CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
 autoplot(m2, which = 1:4)
 dev.off()
 
+# By covariate
+
+df <- broom::augment(m)
+
+df <- df %>% 
+  pivot_longer(cols = c(marks:marks_inside_50), names_to = "covariate", values_to = "value")
+
+CairoPNG("olet5608/output/afl_covariate_linearity.png", 800, 600)
+ggplot(data = df, aes(x = .fitted, y = value)) + 
+  labs(title = "Relationship between model fitted and covariate values",
+       subtitle = "Smooth lines estimated with GAMs to highlight existent nonlinearities") +
+  geom_point() + 
+  geom_smooth(formula = y ~ s(x), method = "gam") +
+  facet_wrap(~covariate)
+dev.off()
+
 #------------------
 # Outlier detection
 #------------------
