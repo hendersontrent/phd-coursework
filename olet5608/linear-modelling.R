@@ -217,14 +217,20 @@ dev.off()
 
 m <- lm(score ~ ., data = aflScaled)
 
+# With polynomial second-order terms
+
+m1 <- lm(score ~ marks + handballs + hit_outs + tackles + rebounds + inside_50s + I(inside_50s^2) +
+          clearances + clangers + frees_for + contested_possessions + contested_marks + marks_inside_50 + I(marks_inside_50^2),
+        data = aflScaled)
+
 # Square-root transformed response
 
-m1 <- lm(sqrt(score) ~ ., data = aflScaled)
+m2 <- lm(sqrt(score) ~ ., data = aflScaled)
 
 # Weighted OLS
 
 wt <- 1 / lm(abs(m$residuals) ~ m$fitted.values)$fitted.values^2
-m2 <- lm(score ~ ., weights = wt, data = aflScaled)
+m3 <- lm(score ~ ., weights = wt, data = aflScaled)
 
 # Heteroscedastic-robust standard errors of base OLS
 
@@ -299,7 +305,29 @@ plot(m)
 dev.off()
 
 CairoPNG("olet5608/output/afl_lm_diagnostics_gg.png", 800, 600)
-autoplot(m2, which = 1:4)
+autoplot(m, which = 1:4)
+dev.off()
+
+# By covariate
+
+df <- broom::augment(m) %>%
+  clean_names() #%>%
+  #mutate(i_inside_50s_2 = as.numeric(i_inside_50s_2),
+         #i_marks_inside_50_2 = as.numeric(i_marks_inside_50_2))
+
+df <- df %>% 
+  pivot_longer(cols = c(marks:marks_inside_50), names_to = "covariate", values_to = "value")
+
+#df <- df %>% 
+#  pivot_longer(cols = c(marks:i_marks_inside_50_2), names_to = "covariate", values_to = "value")
+
+CairoPNG("olet5608/output/afl_covariate_linearity.png", 800, 600)
+ggplot(data = df, aes(x = fitted, y = value)) + 
+  labs(title = "Relationship between model fitted and covariate values",
+       subtitle = "Smooth lines estimated with GAMs to highlight existent nonlinearities") +
+  geom_point() + 
+  geom_smooth(formula = y ~ s(x), method = "gam") +
+  facet_wrap(~covariate)
 dev.off()
 
 #------------------
@@ -325,7 +353,7 @@ abs(qt(.05/(length(stud)*2), nrow(aflScaled)-ncol(aflScaled))) # Maximum doesn't
 # Robust regression
 #------------------
 
-m2 <- rlm(goals ~ ., data = aflScaled)
+m4 <- rlm(goals ~ ., data = aflScaled)
 
 # Look at range of weights (if close to 1, then OLS and robust results will be similar)
 
@@ -337,25 +365,27 @@ range(m2$w)
 
 thecols <- colnames(aflScaled)[-c(1)]
 gamformula <- as.formula(paste("score ~ ", paste("s(",thecols, ", k = 27)", collapse = "+ ")))
-gam_mod <- gam(formula = gamformula, data = aflScaled, method = "REML")
+m5 <- gam(formula = gamformula, data = aflScaled, method = "REML")
+
+m5_het <- gam(formula = gamformula, data = aflScaled, method = "REML", family = gaulss())
 
 # Model outputs
 
-summary(gam_mod)
+summary(m5)
 
 # Diagnostic plots
 
 CairoPNG("olet5608/output/gamDiagnostics.png", 800, 600)
-viz <- getViz(gam_mod)
+viz <- getViz(m5)
 check(viz,
-      gam_mod.qq = list(method = "tnorm", 
-                        gam_mod.cipoly = list(fill = "light blue")), 
-      gam_mod.respoi = list(size = 0.5), 
-      gam_mod.hist = list(bins = 10))
+      m5.qq = list(method = "tnorm", 
+                        m5.cipoly = list(fill = "light blue")), 
+      m5.respoi = list(size = 0.5), 
+      m5.hist = list(bins = 10))
 dev.off()
 
 # Predictor smooth plots
 
 CairoPNG("olet5608/output/gamOutputs.png", 800, 600)
-gratia::draw(gam_mod)
+gratia::draw(m5)
 dev.off()
