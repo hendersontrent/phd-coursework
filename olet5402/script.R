@@ -25,7 +25,7 @@ tmp <- data.frame(ball = c("Old", "New", "Old", "New", "Old", "New"),
 
 # Draw graphic
 
-CairoPNG("olet5402/images/expectations.png", 600, 400)
+CairoPNG("olet5402/images/expectations.png", 400, 300)
 p <- tmp %>%
   ggplot(aes(x = handicap, y = spinrate, colour = ball)) +
   geom_point(size = 2.5) +
