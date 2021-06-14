@@ -32,7 +32,8 @@ p <- tmp %>%
   geom_errorbar(aes(ymin = lower, ymax = upper)) +
   labs(x = "Handicap Grouping",
        y = "Spin Rate (Revolutions per Minute)",
-       colour = "Ball Type") +
+       colour = "Ball Type",
+       caption = "Error bars indicate estimated 95% confidence intervals") +
   theme(legend.position = "bottom",
         legend.key = element_rect(fill = NA))
 print(p)
