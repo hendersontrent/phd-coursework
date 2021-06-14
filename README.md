@@ -6,3 +6,4 @@ Holds source code for all coursework in my PhD.
 This repository is organised by The University of Sydney course name. Each subfolder is contains all code produced for a given course. So far, this includes:
 
 * OLET5608 - Linear Modelling
+* OLET5402 - Basics of Quantitative Research Design
