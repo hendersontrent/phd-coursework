@@ -18,7 +18,7 @@ stderror <- 150
 
 tmp <- data.frame(ball = c("Old", "New", "Old", "New", "Old", "New"),
                   handicap = c("Low", "Low", "Mid", "Mid", "High", "High"),
-                  spinrate = c(10200,10250,9900,10200,9350,10100)) %>%
+                  spinrate = c(10200,10250,9900,10200,9350,10000)) %>%
   mutate(handicap = factor(handicap, levels = c("Low", "Mid", "High"))) %>%
   mutate(lower = spinrate-(2*stderror),
          upper = spinrate+(2*stderror))
