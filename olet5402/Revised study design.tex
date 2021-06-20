@@ -27,7 +27,7 @@ All balls will be mixed in the same bucket and unmarked to avoid any participant
 The response variable \textit{spin rate} will be measured via an advanced launch monitor which can accurately track spin and other statistics for each shot.
 Since low handicap players are better players in general, we hypothesise that the new design would make a more marked improvement in spin rates for mid and high (especially high) handicap players who are more reliant on technology to correct mechanical errors in their swing.
 
-It is proposed that a generalised linear model with a gamma link function (due to spin values only being positive) will be fit to the data, with ball type, handicap grouping, and a set of other control variables entered in as predictors. 
+It is proposed that a generalised linear model with a gamma or log link function (due to spin values only being positive) will be fit to the data, with ball type, handicap grouping, and a set of other control variables entered in as predictors. 
 An interaction term between ball type and handicap grouping will also be included in addition to the individual main effects. 
 Control variables will include age (integer, measured in years), sex (categorical, measured as a factor with three levels: Male, Female, Other/Intersex), and stiffness of golf club shaft (categorical, measured as a factor with four levels: Seniors, Regular, Stiff, Extra Stiff). 
 Hypothetically, if the research question is supported, results similar to the simulation presented in Figure~\ref{fig:expectations} would be expected.
