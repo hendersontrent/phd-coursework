@@ -10,6 +10,7 @@
 
 library(dplyr)
 library(ggplot2)
+library(scales)
 library(Cairo)
 
 # Simulate data
@@ -34,6 +35,7 @@ p <- tmp %>%
        y = "Spin Rate (Revolutions per Minute)",
        colour = "Ball Type",
        caption = "Error bars indicate estimated 95% confidence intervals") +
+  scale_y_continuous(labels = comma) +
   theme(legend.position = "bottom",
         legend.key = element_rect(fill = NA))
 print(p)
