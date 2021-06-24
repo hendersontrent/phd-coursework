@@ -14,9 +14,9 @@
 
 \maketitle
 
-As a company who is increasingly focused on amateur golfers, Titleist are interested in understanding the performance of their new ball relative to their existing ball, especially for mid-high handicap players\footnote{The golf handicap system in Australia ranges from 0 to 36, with tiers for "low handicap" including 0-10, "mid handicap" including 11-20, and "high handicap" including 21 and above.}. 
+As a company who is increasingly focused on amateur golfers, Titleist are interested in understanding the performance of their new ball relative to their existing ball, especially for high handicap players\footnote{The golf handicap system in Australia ranges from 0 to 36, with tiers for "low handicap" including 0-10, "mid handicap" including 11-20, and "high handicap" including 21 and above.}. 
 As such, the following research question was developed: \textit{Does Titleist's new ball design improve spin rates around the green for players who currently play the standard Titleist ball?} 
-Since low handicap players are better players in general, we hypothesise that the new design would make a more marked improvement in spin rates for mid and high (especially high) handicap players who are more reliant on technology to correct mechanical errors in their swing.
+Since low handicap players are highly skilled, we hypothesise that the new design would make a more marked improvement in spin rates for high and mid handicap players who are more reliant on technology to aid performance.
 
 \subsection*{Participants}
 
@@ -39,14 +39,15 @@ Participants will be required to have hit no other balls on the testing day.
 Each participant will randomly hit ten balls from a single bucket, where five are the current Titleist ball and five are the new ball. 
 Following the warm-up, each participant will then randomly hit forty balls from a single bucket, where twenty are the current Titleist ball and twenty are the new ball.
 All balls for both warm-up and testing will be mixed in the same bucket and unmarked to avoid any participant equipment bias, but will be electronically marked so that the computer software will be able to detect ball type. 
-The response variable \textit{spin rate} will be measured via a launch monitor which can accurately track spin (and other statistics) for each shot.
+The response variable \textit{spin rate} will be measured via a launch monitor which can accurately track spin (and other statistics) for each shot. 
+Testing will occur over the course of one week and even numbers of players from all three handicap groupings will be recruited for each day to counterbalance any methodological effects.
 
 \subsection*{Statistical Analysis}
 
 It is proposed that a generalised linear model with a gamma or lognormal link function (due to spin values only being positive) will be fit to the data, with ball type, handicap grouping, a set of control variables (age, sex, shaft stiffness), and an interaction term between ball type and handicap grouping will be included as predictors. 
 Hypothetically, if the research question is supported, results similar to the simulation presented in Figure~\ref{fig:expectations} would be expected.
-Here we can see the relative gain in spin rate for the new ball (after controlling for other variables) is much lower for high handicappers, but is quite substantial for mid and especially low handicappers. 
-In other words, the new ball's technology may help high handicappers to experience performance closer to those with higher skill.
+Evidently, the relative gain in spin rate for the new ball (after controlling for other variables) is much lower for high handicappers, but is quite substantial for mid and especially low handicappers. 
+More simply, the new ball's technology may help high handicappers to experience performance closer to those with higher skill.
 
 \begin{figure}[h]
     \centering
