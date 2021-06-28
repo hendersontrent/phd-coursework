@@ -1,0 +1,75 @@
+---
+title: "Data Wrangling - Project"
+subtitle: "Webscraping and initial analysis of univeriate time-series problem datasets"
+author: "Trent Henderson"
+date: 
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: flatly  # Style sheet (eg colour and font)
+    css: 
+      - https://use.fontawesome.com/releases/v5.0.6/css/all.css
+    toc: true  # Table of contents
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+<style>
+h2 { /* Header 2 */
+    font-size: 22px
+}
+</style>
+
+<style>
+h3 { /* Header 3 */
+    font-size: 18px
+}
+</style>
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(tidy = FALSE, 
+                      message = FALSE,
+                      warning = FALSE,
+                      echo = TRUE, 
+                      fig.width = 8,
+                      fig.height = 6,
+                      fig.align = "center",
+                      fig.retina = 4)
+```
+
+# Executive Summary
+
+Insert a concise (max 200 word) exectutive summary.
+It should be a clear, interesting summary of main insights from the report.
+
+# Exploring the Dataset
+
+- Assess Data Provenance
+- Domain knowledge
+- Explore the data structure
+- Look for outliers and missing data
+
+# Research Question 1 - [INSERT QUESTION HERE]
+
+Here you should
+
+- Address stakeholders
+- Wrangle your data to explore your research question
+- Create some visualisations
+- Provide a conclusion to the research question
+
+# Research Question 2 - [INSERT QUESTION HERE]
+
+Here you should
+
+- Address stakeholders
+- Wrangle your data to explore your research question
+- Create some visualisations
+- Provide a conclusion to the research question
+
+# Reflection on Data Wrangling
+
+Insert your reflection on how data wrangling helped you explore your research questions.
+(Don't forget to adjust information at the top of report regarding your name in the author field etc!!)
