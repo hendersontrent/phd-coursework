@@ -53,6 +53,7 @@ library(magrittr)
 library(tidyr)
 library(ggplot2)
 library(scales)
+library(tidytext)
 library(foreign)
 library(Rcatch22)
 library(theft) # Not quite on CRAN yet - devtools::install_github("hendersontrent/theft")
@@ -170,43 +171,57 @@ allProbs <- pullTSCprobs()
 
 ## Data structure
 
-As this data was webscraped for a broader purpose than this report, there is `r unique(allProbs$problem)` number of different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of the high-level descriptive properties of each is presented in Figure \@ref(fig:structplot).
+As this data was webscraped for a broader purpose than this report, there is `r length(unique(allProbs$problem))` number of different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of the high-level descriptive properties of each is presented in Figure \@ref(fig:structplot).
 
 ```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
 p <- allProbs %>%
   group_by(problem) %>%
-  summarise() %>%
+  summarise(tsLength = max(timepoint),
+            trainSize = length(unique(id[set_split == "Train"])),
+            testSize = length(unique(id[set_split == "Test"]))) %>%
   ungroup() %>%
-  pivot_longer() %>%
-  ggplot(aes(x = reorder(problem, metric), y = metric)) +
+  pivot_longer(cols = tsLength:testSize, names_to = "metric", values_to = "values") %>%
+  mutate(metric = case_when(
+    metric == "tsLength"  ~ "Time Series Length",
+    metric == "trainSize" ~ "Train Set Size",
+    metric == "testSize"  ~ "Test Set Size")) %>%
+  group_by(metric) %>%
+  mutate(ranker = dense_rank(values)) %>%
+  ungroup() %>%
+  mutate(metric = factor(metric, levels = c("Time Series Length", "Train Set Size", "Test Set Size"))) %>%
+  ggplot(aes(x = tidytext::reorder_within(problem, -ranker, values), y = values)) +
   geom_bar(stat = "identity", alpha = 0.9, fill = "#E494D3") +
   labs(x = "Time Series Problem",
        y = "Value") +
-  facet_wrap(~metric)
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~metric, scales = "free") +
+  theme(axis.text.x = element_text(angle = 90))
 
 print(p)
 ```
 
-However, this report will focus on a single dataset - MoteStrain.
+However, this report will focus on a single dataset - *SonyAIBORobotSurface1*. This dataset^[Manuela Velos and Douglas Vail, accessed via http://alumni.cs.ucr.edu/~mueen/LogicalShapelet/] contains x-axis accelerometer recordings for the SONY AIBO Robot - a small quadruped dog-like robot - while it walked across either carpet or cement surfaces. The resulting data comprises a univariate two-class classification problem. Each time series represents one walk cycle for the robot. From a materials perspective, cement is much more solid than carpet, so one could intuit that the time series may show a higher level of "sharpness" in its changes^[Mueen, A., Keogh, E., & Young, N. (2011). Logical-Shapelets: An Expressive Primitive for Time Series Classification. proceedings of the 17th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. Accessed via http://alumni.cs.ucr.edu/~mueen/pdf/Logical-Shapelet.pdf]. Depending on the composition of the robot, this may result in larger variance as the opposing forces of cement may produce more "spring" in the robot's movement. A visual check of the raw time series is useful to gauge any statistical peculiarities or issues with the import. A random sample of ten time series from SonyAIBORobotSurface1 - five from the *train* class and five from the *test* class - is presented in Figure \@ref(fig:tsplot).
 
-A visual check of the raw time series is useful to gauge any statistical peculiarities or issues with the import. A random sample of ten time series - five from the *train* class and five from the *test* - is presented in Figure \@ref(fig:tsplot).
+```{r tsplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Random subset of ten raw time series for SonyAIBORobotSurface1"}
+# Filter to just SonyAIBORobotSurface1 and free up memory from the main dataset
 
-```{r tsplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Random subset of ten raw time series"}
-# Filter to just MoteStrain and free up memory from the main dataset
-
-MoteStrain <- allProbs %>%
-  filter(problem == "MoteStrain")
+SonyAIBORobotSurface1 <- allProbs %>%
+  filter(problem == "SonyAIBORobotSurface1")
 
 rm(allProbs)
 
 # Randomly sample five IDs from each group
 
-trainIDs <- MoteStrain %>%
-  filter(target == "Train") %>%
+trainIDs <- SonyAIBORobotSurface1 %>%
+  filter(set_split == "Train") %>%
+  dplyr::select(c(id)) %>%
+  distinct() %>%
   pull(id)
 
-testIDs <- MoteStrain %>%
-  filter(target == "Test") %>%
+testIDs <- SonyAIBORobotSurface1 %>%
+  filter(set_split == "Test") %>%
+  dplyr::select(c(id)) %>%
+  distinct() %>%
   pull(id)
 
 # Filter dataset by ten IDs
@@ -219,14 +234,17 @@ allSamps <- append(trainSamps, testSamps)
 
 # Produce graphic
 
-p1 <- MoteStrainFilt %>%
+p1 <- SonyAIBORobotSurface1 %>%
   filter(id %in% allSamps) %>%
-  ggplot(aes(x = timepoint, y = value, colour = target)) +
+  ggplot(aes(x = timepoint, y = values, colour = target)) +
   geom_line() +
   labs(x = "Timepoint",
-       y = "Value") +
+       y = "Value",
+       colour = "Class") +
   scale_colour_manual(values = c("#E494D3", "#87DCC0")) +
-  facet_wrap(~id)
+  facet_wrap(~id, ncol = 2) +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
 
 print(p1)
 ```
@@ -235,7 +253,7 @@ print(p1)
 
 x
 
-# Research Question 1 - [INSERT QUESTION HERE]
+# Research Question 1 - Do time-series features reveal empirical structure in the data?
 
 Here you should
 
@@ -244,7 +262,65 @@ Here you should
 - Create some visualisations
 - Provide a conclusion to the research question
 
-# Research Question 2 - [INSERT QUESTION HERE]
+The raw time series are interesting, however, they do not immediately provide us with informative findings about the differences in movement between carpet and cement, or the temporal properties themselves overall. One way to approach this is to compute a series of features for each unique time series, and use the feature space to do analysis. This both reduces computational intensity and may increase the potential to find rich structure in the data that is not immediately visible from the measurement space.
+
+## Feature calculation
+
+One particular feature set that has been particularly prominent in the academic literature is [`catch22`](https://github.com/chlubba/catch22) - a set of 22 time-series characteristics that have been shown to be minimally redundant while maximising classification accuracy across a broad range of problems. This feature set is implemented in R through the [`Rcatch22`](https://cran.r-project.org/web/packages/Rcatch22/index.html) package. For convenience, `Rcatch22` and a host of other feature sets across both R and Python has been built in the package [`theft`](https://github.com/hendersontrent/theft) which automates the entire workflow from feature calculation to data visualisation in a format consistent with the broader [`tidyverse`](https://www.tidyverse.org).
+
+```{r, message = FALSE, warning = FALSE}
+feature_matrix <- calculate_features(data = SonyAIBORobotSurface1, 
+                                     id_var = "id", 
+                                     time_var = "timepoint", 
+                                     values_var = "values", 
+                                     group_var = "target",
+                                     feature_set = "catch22")
+
+# Re-join set split labels
+
+setlabs <- SonyAIBORobotSurface1 %>%
+  dplyr::select(c(id, set_split)) %>%
+  distinct()
+
+featMat <- feature_matrix %>%
+  left_join(setlabs, by = c("id", "id"))
+```
+
+## Low dimension representation
+
+The new 22-dimension feature space can be further simplified by calculating a plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is principal components analysis (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in Figure \@ref(fig:lowdim).
+
+```{r lowdim, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Low dimension representation of SonyAIBORobotSurface1"}
+plot_low_dimension(featMat, 
+                   is_normalised = FALSE, 
+                   id_var = "id", 
+                   group_var = "group", 
+                   method = "z-score", 
+                   low_dim_method = "PCA", 
+                   plot = TRUE)
+```
+
+## Matrix visualisations
+
+Further structure in the data can be assessed through pairwise relationships between the feature vectors. These relationships can be plotted as matrices in a gradient-filled format that resembles a "heatmap". This is presented for a matrix of Features x Unique Time Series in Figure \@ref(fig:matrix1) and for Unique Time Series x Unique Time Series in Figure \@ref(fig:matrix2). Both of these graphs are standard outputs of `theft` functions. Prior to plotting, Pearson product-moment correlations were computed, and the matrix of results was hierarchically clustered to visually reveal any structure in the data once plotted in the heatmap. z-score normalisation was again applied for both of these graphics.
+
+```{r matrix1, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Pairwise relationships between features and unique time series"}
+plot_feature_matrix(featMat, 
+                    is_normalised = FALSE, 
+                    id_var = "id", 
+                    method = "z-score")
+```
+
+```{r matrix1, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Pairwise relationships between unique time series"}
+plot_connectivity_matrix(featMat, 
+                         is_normalised = FALSE, 
+                         id_var = "id", 
+                         names_var = "names", 
+                         values_var = "values",
+                         method = "z-score")
+```
+
+# Research Question 2 - Can a time series feature-based classifier be trained to accurately predict labels in the test set?
 
 Here you should
 
@@ -252,8 +328,11 @@ Here you should
 - Wrangle your data to explore your research question
 - Create some visualisations
 - Provide a conclusion to the research question
+
+With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. Namely, can a subset of the data be used to train a classifier that can accurately predict whether the robot was walking on carpet or cement in an unseen dataset? This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
+
+
 
 # Reflection on Data Wrangling
 
-Insert your reflection on how data wrangling helped you explore your research questions.
-(Don't forget to adjust information at the top of report regarding your name in the author field etc!!)
+Data wrangling was 
