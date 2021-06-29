@@ -174,7 +174,61 @@ As this data was webscraped for a broader purpose than this report, there is `r 
 
 ```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
 p <- allProbs %>%
-  x
+  group_by(problem) %>%
+  summarise() %>%
+  ungroup() %>%
+  pivot_longer() %>%
+  ggplot(aes(x = reorder(problem, metric), y = metric)) +
+  geom_bar(stat = "identity", alpha = 0.9, fill = "#E494D3") +
+  labs(x = "Time Series Problem",
+       y = "Value") +
+  facet_wrap(~metric)
+
+print(p)
+```
+
+However, this report will focus on a single dataset - MoteStrain.
+
+A visual check of the raw time series is useful to gauge any statistical peculiarities or issues with the import. A random sample of ten time series - five from the *train* class and five from the *test* - is presented in Figure \@ref(fig:tsplot).
+
+```{r tsplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Random subset of ten raw time series"}
+# Filter to just MoteStrain and free up memory from the main dataset
+
+MoteStrain <- allProbs %>%
+  filter(problem == "MoteStrain")
+
+rm(allProbs)
+
+# Randomly sample five IDs from each group
+
+trainIDs <- MoteStrain %>%
+  filter(target == "Train") %>%
+  pull(id)
+
+testIDs <- MoteStrain %>%
+  filter(target == "Test") %>%
+  pull(id)
+
+# Filter dataset by ten IDs
+
+set.seed(123) # Fix seed for reproducibility
+
+trainSamps <- sample(trainIDs, 5)
+testSamps <- sample(testIDs, 5)
+allSamps <- append(trainSamps, testSamps)
+
+# Produce graphic
+
+p1 <- MoteStrainFilt %>%
+  filter(id %in% allSamps) %>%
+  ggplot(aes(x = timepoint, y = value, colour = target)) +
+  geom_line() +
+  labs(x = "Timepoint",
+       y = "Value") +
+  scale_colour_manual(values = c("#E494D3", "#87DCC0")) +
+  facet_wrap(~id)
+
+print(p1)
 ```
 
 ## Outliers and missing data
