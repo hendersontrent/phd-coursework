@@ -27,7 +27,7 @@ h3 { /* Header 3 */
 }
 </style>
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 library(knitr)
 knitr::opts_chunk$set(tidy = FALSE, 
                       message = FALSE,
@@ -41,15 +41,145 @@ knitr::opts_chunk$set(tidy = FALSE,
 
 # Executive Summary
 
-Insert a concise (max 200 word) exectutive summary.
+Insert a concise (max 200 word) executive summary.
 It should be a clear, interesting summary of main insights from the report.
 
 # Exploring the Dataset
 
-- Assess Data Provenance
-- Domain knowledge
-- Explore the data structure
-- Look for outliers and missing data
+```{r setup, warning = FALSE, message = FALSE}
+library(data.table)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(foreign)
+library(Rcatch22)
+library(theft) # Not quite on CRAN yet - devtools::install_github("hendersontrent/theft")
+```
+
+```{r setup, warning = FALSE, message = FALSE}
+#' Function to automatically webscrape and parse Time Series Classification univariate two-class classification datasets
+#' 
+#' NOTE: The dictionary list used to identify and pass two-class problems only should be switched to a dynamic
+#' webscrape table read to ensure it can scale as the dataset structure changes/is added to.
+#' 
+#' @return a dataframe object in tidy form
+#' @author Trent Henderson
+#' 
+
+pullTSCprobs <- function(){
+  
+  # --------------- Set up dictionary -------------
+  
+  # Not all the datasets are two-class problems. Define dictionary from
+  # website of two-class problems to filter downloaded dataset by
+  # Source: http://www.timeseriesclassification.com/dataset.php
+  
+  twoclassprobs <- c("Yoga", "WormsTwoClass", "Wine", 
+                     "Wafer", "TwoLeadECG", "ToeSegmentation2", 
+                     "ToeSegmentation1", "Strawberry", "SonyAIBORobotSurface2", 
+                     "SonyAIBORobotSurface1", "SharePriceIncrease", "ShapeletSim", 
+                     "SemgHandGenderCh2", "SelfRegulationSCP2", "SelfRegulationSCP1", 
+                     "RightWhaleCalls", "ProximalPhalanxOutlineCorrect", "PowerCons",
+                     "PhalangesOutlinesCorrect", "MotorImagery", "MoteStrain", 
+                     "MiddlePhalanxOutlineCorrect", "Lightning2", "ItalyPowerDemand", 
+                     "HouseTwenty", "Herring", "HandOutlines", "Ham", "GunPointOldVersusYoung", 
+                     "GunPointMaleVersusFemale", "GunPointAgeSpan", "GunPoint", 
+                     "FreezerSmallTrain", "FreezerRegularTrain", "FordB",
+                     "FordA", "ECGFiveDays", "ECG200", "Earthquakes", "DodgerLoopWeekend", 
+                     "DodgerLoopGame", "DistalPhalanxOutlineCorrect", "Computers", 
+                     "Coffee", "Chinatown", "BirdChicken", "BeetleFly")
+  
+  # --------------- Webscrape the data ------------
+  
+  temp <- tempfile()
+  download.file("http://www.timeseriesclassification.com/Downloads/Archives/Univariate2018_arff.zip", temp, mode = "wb")
+  
+  # --------------- Parse into problems -----------
+  
+  problemStorage <- list()
+  message("Parsing individual datasets...")
+  
+  for(i in twoclassprobs){
+    
+    tryCatch({
+      
+      path <- paste0("Univariate_arff/",i,"/")
+      
+      # Retrieve TRAIN and TEST files
+      
+      train <- foreign::read.arff(unz(temp, paste0(path,i,"_TRAIN.arff"))) %>%
+        mutate(id = row_number()) %>%
+        mutate(set_split = "Train")
+      
+      themax <- max(train$id) # To add in test set to avoid duplicate IDs
+      
+      test <- foreign::read.arff(unz(temp, paste0(path,i,"_TEST.arff"))) %>%
+        mutate(id = row_number()+themax) %>% # Adjust relative to train set to stop double-ups
+        mutate(set_split = "Test")
+      
+      #----------------------------
+      # Wrangle data to long format
+      #----------------------------
+      
+      # Train
+      
+      thecolstr <- colnames(train)
+      keepcolstr <- thecolstr[!thecolstr %in% c("target", "id", "set_split")]
+      
+      train2 <- train %>%
+        mutate(problem = i) %>%
+        tidyr::pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
+        mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+      
+      # Test
+      
+      thecolste <- colnames(test)
+      keepcolste <- thecolste[!thecolste %in% c("target", "id", "set_split")]
+      
+      test2 <- test %>%
+        mutate(problem = i) %>%
+        tidyr::pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
+        mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+      
+      #------
+      # Merge
+      #------
+      
+      tmp <- bind_rows(train2, test2)
+      problemStorage[[i]] <- tmp
+      
+    }, error = function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  }
+  
+  problemStorage2 <- rbindlist(problemStorage, use.names = TRUE)
+  return(problemStorage2)
+}
+
+allProbs <- pullTSCprobs()
+```
+
+## Data Provenance
+
+
+
+## Domain knowledge
+
+
+
+## Data structure
+
+As this data was webscraped for a broader purpose than this report, there is `r unique(allProbs$problem)` number of different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of the high-level descriptive properties of each is presented in Figure \@ref(fig:structplot).
+
+```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
+p <- allProbs %>%
+  x
+```
+
+## Outliers and missing data
+
+x
 
 # Research Question 1 - [INSERT QUESTION HERE]
 
