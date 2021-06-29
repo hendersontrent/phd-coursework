@@ -1,0 +1,436 @@
+---
+title: "Data Wrangling - Project"
+subtitle: "Webscraping and statistical analysis of univariate time-series classification data"
+author: "Trent Henderson"
+date: 
+output:
+  html_document:
+    number_sections: yes
+    self_contained: yes
+    theme: flatly  # Style sheet (eg colour and font)
+    css: 
+      - https://use.fontawesome.com/releases/v5.0.6/css/all.css
+    toc: true  # Table of contents
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+<style>
+h2 { /* Header 2 */
+    font-size: 22px
+}
+</style>
+
+<style>
+h3 { /* Header 3 */
+    font-size: 18px
+}
+</style>
+
+```{r setup, include = FALSE}
+library(knitr)
+knitr::opts_chunk$set(tidy = FALSE, 
+                      message = FALSE,
+                      warning = FALSE,
+                      echo = TRUE, 
+                      fig.width = 8,
+                      fig.height = 6,
+                      fig.align = "center",
+                      fig.retina = 4)
+```
+
+# Executive Summary
+
+The present report investigated a set of univariate time-series datasets from the UEA & UCR Time Series Classification Repository. A subset of datasets were webscraped from the repository and then processed using a detailed data wrangling pipeline to enable rigorous analysis. One specific dataset - SonyAIBORobotSurface1 - was selected for a detailed deep dive due to its practical significance. The dataset comprises measurements of a Sony AIBO Robot moving across either carpet or cement, and the present analysis sought to understand the empirical structure of this data. A feature-based time-series analysis approach was taken, which revealed rich structure in the data and the strong potential for features to be able to classify unseen data as being taken from either carpet or cement. A support vector machine (SVM) algorithm was fit and produced an 86% classification accuracy of the robot's dynamics being measured on either carpet or cement. This holds important practical significance as the algorithm contained in this report could be used in pseudo-real-time applications either remotely or within the robot's electronics to predict terrain type, risk, and other information of interest with an acceptably high accuracy.
+
+# Exploring the Dataset
+
+```{r warning = FALSE, message = FALSE}
+library(data.table)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(tibble)
+library(tidytext)
+library(foreign)
+library(Rcatch22)
+library(theft) # Not quite on CRAN yet - devtools::install_github("hendersontrent/theft")
+library(e1071)
+library(caret)
+```
+
+```{r, warning = FALSE, message = FALSE, results = 'hide'}
+#' Function to automatically webscrape and parse Time Series Classification univariate two-class classification datasets
+#' 
+#' NOTE: The dictionary list used to identify and pass two-class problems only should be switched to a dynamic
+#' webscrape table read to ensure it can scale as the dataset structure changes/is added to.
+#' 
+#' @return a dataframe object in tidy form
+#' @author Trent Henderson
+#' 
+
+pullTSCprobs <- function(){
+  
+  # --------------- Set up dictionary -------------
+  
+  # Not all the datasets are two-class problems. Define dictionary from
+  # website of two-class problems to filter downloaded dataset by
+  # Source: http://www.timeseriesclassification.com/dataset.php
+  
+  twoclassprobs <- c("Yoga", "WormsTwoClass", "Wine", 
+                     "Wafer", "TwoLeadECG", "ToeSegmentation2", 
+                     "ToeSegmentation1", "Strawberry", "SonyAIBORobotSurface2", 
+                     "SonyAIBORobotSurface1", "SharePriceIncrease", "ShapeletSim", 
+                     "SemgHandGenderCh2", "SelfRegulationSCP2", "SelfRegulationSCP1", 
+                     "RightWhaleCalls", "ProximalPhalanxOutlineCorrect", "PowerCons",
+                     "PhalangesOutlinesCorrect", "MotorImagery", "MoteStrain", 
+                     "MiddlePhalanxOutlineCorrect", "Lightning2", "ItalyPowerDemand", 
+                     "HouseTwenty", "Herring", "HandOutlines", "Ham", "GunPointOldVersusYoung", 
+                     "GunPointMaleVersusFemale", "GunPointAgeSpan", "GunPoint", 
+                     "FreezerSmallTrain", "FreezerRegularTrain", "FordB",
+                     "FordA", "ECGFiveDays", "ECG200", "Earthquakes", "DodgerLoopWeekend", 
+                     "DodgerLoopGame", "DistalPhalanxOutlineCorrect", "Computers", 
+                     "Coffee", "Chinatown", "BirdChicken", "BeetleFly")
+  
+  # --------------- Webscrape the data ------------
+  
+  temp <- tempfile()
+  download.file("http://www.timeseriesclassification.com/Downloads/Archives/Univariate2018_arff.zip", temp, mode = "wb")
+  
+  # --------------- Parse into problems -----------
+  
+  problemStorage <- list()
+  message("Parsing individual datasets...")
+  
+  for(i in twoclassprobs){
+    
+    tryCatch({
+      
+      path <- paste0("Univariate_arff/",i,"/")
+      
+      # Retrieve TRAIN and TEST files
+      
+      train <- foreign::read.arff(unz(temp, paste0(path,i,"_TRAIN.arff"))) %>%
+        mutate(id = row_number()) %>%
+        mutate(set_split = "Train")
+      
+      themax <- max(train$id) # To add in test set to avoid duplicate IDs
+      
+      test <- foreign::read.arff(unz(temp, paste0(path,i,"_TEST.arff"))) %>%
+        mutate(id = row_number()+themax) %>% # Adjust relative to train set to stop double-ups
+        mutate(set_split = "Test")
+      
+      #----------------------------
+      # Wrangle data to long format
+      #----------------------------
+      
+      # Train
+      
+      thecolstr <- colnames(train)
+      keepcolstr <- thecolstr[!thecolstr %in% c("target", "id", "set_split")]
+      
+      train2 <- train %>%
+        mutate(problem = i) %>%
+        tidyr::pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
+        mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+      
+      # Test
+      
+      thecolste <- colnames(test)
+      keepcolste <- thecolste[!thecolste %in% c("target", "id", "set_split")]
+      
+      test2 <- test %>%
+        mutate(problem = i) %>%
+        tidyr::pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
+        mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+      
+      #------
+      # Merge
+      #------
+      
+      tmp <- bind_rows(train2, test2)
+      problemStorage[[i]] <- tmp
+      
+    }, error = function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  }
+  
+  problemStorage2 <- rbindlist(problemStorage, use.names = TRUE)
+  return(problemStorage2)
+}
+
+allProbs <- pullTSCprobs()
+```
+
+## Data Provenance
+
+The [UEA & UCR Time Series Classification Repository](www.timeseriesclassification.com) is a website which contains a large set of univariate and multivariate time-series datasets that are used for benchmarking and testing of classification algorithms. The repository is maintained by prominent time series authors across two universities. The authors include Anthony Bagnall, Eamonn Keogh, Jason Lines, Aaron Bogstrom, James Large, and Matthew Middlehurst. The repository currently includes 128 univariate and 30 multivariate time-series datasets. These datasets included in the repository are considered the 'gold standard' for which researchers and analysts must benchmark their novel approaches against. Many papers have been presented on algorithms fit to these datasets and the datasets themselves, such as the popular [The Great Time Series Classification Bake-Off](https://arxiv.org/abs/1602.01711). While questions regarding the individual datasets themselves that comprise the repository could be raised, the scope of this is far beyond that of the present report. However, given the prominence of the repository in the time series field, it can very likely be taken that the reliability and replicability of the measurements contained within is high.
+
+## Domain knowledge
+
+All data contained and reported within this report was sourced directly from the repository's webpage using a simple webscraper that was written to only extract the two-class univariate problems (code presented in the section below). There are no concerns with privacy or ethics for this data aas the repository openly enables (and welcomes) downloads. The webscraper was written simply to programmatically download and extract only the two-class problems, rather than downloading the entire univariate library from the start - which is a very large file. While the number and range of datasets contained in the repository spans a large number and variety, the datasets do not cover all fields of science. Importantly, the datasets do not include any synthetic (simulated) data. This means any inferences drawn from the applied datasets contained within may not generalise to synthetic data.
+
+## Data structure
+
+As this data was webscraped for a ongoing purposes beyond this report, there are 42 `r length(unique(allProbs$problem))` different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of some high-level descriptive properties of each is presented in the figure below.
+
+```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
+p <- allProbs %>%
+  group_by(problem) %>%
+  summarise(tsLength = max(timepoint),
+            trainSize = length(unique(id[set_split == "Train"])),
+            testSize = length(unique(id[set_split == "Test"]))) %>%
+  ungroup() %>%
+  pivot_longer(cols = tsLength:testSize, names_to = "metric", values_to = "values") %>%
+  mutate(metric = case_when(
+    metric == "tsLength"  ~ "Time Series Length",
+    metric == "trainSize" ~ "Train Set Size",
+    metric == "testSize"  ~ "Test Set Size")) %>%
+  group_by(metric) %>%
+  mutate(ranker = dense_rank(values)) %>%
+  ungroup() %>%
+  mutate(metric = factor(metric, levels = c("Time Series Length", "Train Set Size", "Test Set Size"))) %>%
+  ggplot(aes(x = tidytext::reorder_within(problem, -ranker, values, sep = "_"), y = values)) +
+  geom_bar(stat = "identity", alpha = 0.9, fill = "#E494D3") +
+  labs(x = "Time Series Problem",
+       y = "Value") +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~metric, scales = "free") +
+  theme(axis.text.x = element_text(size = 5, angle = 90))
+
+print(p)
+```
+
+However, this report will focus on a single dataset - [*SonyAIBORobotSurface1*](http://alumni.cs.ucr.edu/~mueen/LogicalShapelet/). This dataset contains x-axis accelerometer recordings for the SONY AIBO Robot - a small quadruped dog-like robot - while it walked across either carpet or cement surfaces. The resulting data comprises a univariate two-class classification problem. Each time series represents one walk cycle for the robot. From a materials perspective, cement is much more solid than carpet, so one could intuit that the time series may show a higher level of "sharpness" in its changes^[Mueen, A., Keogh, E., & Young, N. (2011). Logical-Shapelets: An Expressive Primitive for Time Series Classification. proceedings of the 17th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. Depending on the composition of the robot, this may result in larger variance as the opposing forces of cement may produce more "spring" in the robot's movement. A visual check of the raw time series is useful to gauge any statistical peculiarities or issues with the import. A random sample of ten time series from SonyAIBORobotSurface1 - five from the *train* class and five from the *test* class - is presented in the figure below.
+
+```{r tsplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Random subset of ten raw time series for SonyAIBORobotSurface1"}
+# Filter to just SonyAIBORobotSurface1
+
+SonyAIBORobotSurface1 <- allProbs %>%
+  filter(problem == "SonyAIBORobotSurface1")
+
+# Randomly sample five IDs from each group
+
+trainIDs <- SonyAIBORobotSurface1 %>%
+  filter(set_split == "Train") %>%
+  dplyr::select(c(id)) %>%
+  distinct() %>%
+  pull(id)
+
+testIDs <- SonyAIBORobotSurface1 %>%
+  filter(set_split == "Test") %>%
+  dplyr::select(c(id)) %>%
+  distinct() %>%
+  pull(id)
+
+# Filter dataset by ten IDs
+
+set.seed(123) # Fix seed for reproducibility
+
+trainSamps <- sample(trainIDs, 5)
+testSamps <- sample(testIDs, 5)
+allSamps <- append(trainSamps, testSamps)
+
+# Produce graphic
+
+p1 <- SonyAIBORobotSurface1 %>%
+  filter(id %in% allSamps) %>%
+  ggplot(aes(x = timepoint, y = values, colour = target)) +
+  geom_line() +
+  labs(x = "Timepoint",
+       y = "Value",
+       colour = "Class") +
+  scale_colour_manual(values = c("#E494D3", "#87DCC0")) +
+  facet_wrap(~id, ncol = 2) +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
+
+print(p1)
+```
+
+## Outliers and missing data
+
+No missing data is present in the dataset (see figure below).
+
+```{r missplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Visualisation of missing data"}
+naniar::vis_miss(SonyAIBORobotSurface1, warn_large_data = FALSE)
+```
+
+The distribution of values across both train-test split and class grouping is presented in the figure below. Evidently, value medians across each time series are similar (as indicated by horizontal line through each box), however, there are numerous outliers for each group split. Given the nature of following the analysis presented in this report (details provided in the next section), the presence of outliers and heavy-tailed distributions of values is not a concern.
+
+```{r boxplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Visualisation of value distributions by group"}
+p2 <- SonyAIBORobotSurface1 %>%
+  mutate(set_split = factor(set_split, levels = c("Train", "Test"))) %>%
+  ggplot(aes(x = target, y = values, colour = target)) +
+  geom_boxplot() +
+  labs(x = "Class",
+       y = "Values") +
+  scale_colour_manual(values = c("#E494D3", "#87DCC0")) +
+  facet_wrap(~set_split) +
+  theme(legend.position = "none")
+
+print(p2)
+```
+
+# Research Question 1 - Do time-series features reveal empirical structure in the data?
+
+The raw time series are interesting, however, they do not immediately provide us with informative findings about the differences in movement between carpet and cement, nor the temporal properties themselves. One way to approach this is to compute a series of features for each unique time series, and use the feature space to do analysis. A feature is a single summary statistic that is calculated on a vector of time-series values. Simple examples include a mean and standard deviation, though feature complexity can rise rapidly to quantities such as spectral entropy and GARCH coefficients. Bringing time series data to the feature space both reduces computational intensity and may increase the potential to find rich structure in the data that is not immediately visible from the measurement space.
+
+## Feature calculation
+
+One particular feature set that has been particularly prominent in the academic literature is [`catch22`](https://github.com/chlubba/catch22) - a set of 22 time-series characteristics that have been shown to be minimally redundant while maximising classification accuracy across a broad range of problems. This feature set is implemented in R through the [`Rcatch22`](https://cran.r-project.org/web/packages/Rcatch22/index.html) package. For convenience, `Rcatch22` and a host of other feature sets across both R and Python has been built in the package [`theft`](https://github.com/hendersontrent/theft) which automates the entire workflow from feature calculation to data visualisation in a format consistent with the broader [`tidyverse`](https://www.tidyverse.org).
+
+```{r, message = FALSE, warning = FALSE}
+feature_matrix <- calculate_features(data = SonyAIBORobotSurface1, 
+                                     id_var = "id", 
+                                     time_var = "timepoint", 
+                                     values_var = "values", 
+                                     group_var = "target",
+                                     feature_set = "catch22")
+
+# Re-join set split labels
+
+setlabs <- SonyAIBORobotSurface1 %>%
+  dplyr::select(c(id, set_split)) %>%
+  distinct() %>%
+  mutate(id = as.character(id))
+
+featMat <- feature_matrix %>%
+  left_join(setlabs, by = c("id" = "id"))
+```
+
+## Feature calculation quality
+
+Any issues with the calculation of features can be understood easily by computing the proportion of value types (good, `NaN`, `Inf/-Inf`) by feature. The plot below depicts this. Evidently, no issues with feature computation are evident, with 100% of values being classed as good.
+
+```{r qualityplot, message = FALSE, warning = FALSE}
+plot_quality_matrix(feature_matrix)
+```
+
+## Low dimension representation
+
+The new 22-dimension feature space can be further simplified by calculating a plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is principal components analysis (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in the figure below. Evidently, there appears to be clear separation between the classes (carpet or cement) in the low dimension space of the first two principal components. This bodes well for the consideration of classification algorithms.
+
+```{r lowdim, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Low dimension representation of SonyAIBORobotSurface1"}
+plot_low_dimension(featMat, 
+                   is_normalised = FALSE, 
+                   id_var = "id", 
+                   group_var = "group", 
+                   method = "z-score", 
+                   low_dim_method = "PCA", 
+                   plot = TRUE)
+```
+
+## Matrix visualisations
+
+Further structure in the data can be assessed through pairwise relationships between the feature vectors. These relationships can be plotted as matrices in a gradient-filled format that resembles a "heatmap". This type of graphic is a standard output of `theft` functions, which also handles the computation of [Pearson product-moment correlations](https://journals.lww.com/anesthesia-analgesia/fulltext/2018/05000/correlation_coefficients__appropriate_use_and.50.aspx) and the hierarchical clustering of results to visually reveal any structure in the data once plotted in the heatmap. The z-score normalisation method was again applied for both of these graphics. This is presented for a matrix of Feature x Unique Time Series in the figure below.
+
+```{r matrix1, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Pairwise relationships between features and unique time series"}
+plot_feature_matrix(featMat, 
+                    is_normalised = FALSE, 
+                    id_var = "id", 
+                    method = "z-score")
+```
+
+A similar plot for the feature vectors of Unique Time Series x Unique Time Series is presented in the figure below.
+
+```{r matrix2, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Pairwise relationships between unique time series"}
+plot_connectivity_matrix(featMat, 
+                         is_normalised = FALSE, 
+                         id_var = "id", 
+                         names_var = "names", 
+                         values_var = "values",
+                         method = "z-score")
+```
+
+Evidently, neither matrix visualisation reveals particularly informative structure in the data, especially relative to the clarity of the low dimension plot. While the structure of the matrix visualisations (and the low dimension plot, to an extent) is contingent on the normalisation method selected, producing a comparative analysis and selection of an optimal normalisation method is beyond the scope of this report.
+
+## Summary
+
+Evidently, a feature-based approach to time-series analysis can reveal rich and interesting information about the empirical structure of the data. In particular, the low dimension representation strongly suggested that features could be used to predict class membership (i.e. robot walking on carpet or cement). This was visible through the clear separation of the classes in the two-dimensional space. This separation may be even more pronounced across the entire 22 dimensions, though this cannot be easily visualised. Extending this visualisation-based approach to more rigorous computational classification must be performed.
+
+# Research Question 2 - Can a time series feature-based classifier be trained to accurately predict labels in the test set?
+
+With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. The present report is particularly interested in whether a subset of the feature vectors be used to train a classifier that can accurately predict whether the robot was walking on carpet or cement in unseen data. This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
+
+The feature matrix can be wrangled into formats appropriate for modelling through the following:
+
+```{r, message = FALSE, warning = FALSE}
+# Separate into train-test splits
+
+train <- featMat %>%
+  filter(set_split == "Train") %>%
+  mutate(group = as.character(group),
+         group = factor(group, levels = c("1", "2")))
+
+test <- featMat %>%
+  filter(set_split == "Test") %>%
+  mutate(group = as.character(group),
+         group = factor(group, levels = c("1", "2")))
+
+# Normalise train data, save its characteristics, and normalise test data onto its same scale
+
+trainNormed <- train %>%
+  group_by(names) %>%
+  mutate(values = (values-mean(values, na.rm = TRUE))/stats::sd(values, na.rm = TRUE)) %>%
+  ungroup()
+
+trainScales <- train %>%
+  group_by(names) %>%
+  summarise(mean = mean(values, na.rm = TRUE),
+            sd = sd(values, na.rm = TRUE)) %>%
+  ungroup()
+
+testNormed <- test %>%
+  left_join(trainScales, by = c("names" = "names")) %>%
+  group_by(names) %>%
+  mutate(values = (values-mean)/sd) %>%
+  ungroup() %>%
+  dplyr::select(-c(mean, sd))
+
+# Widen datasets for modelling
+
+trainWide <- trainNormed %>%
+  pivot_wider(id_cols = c(id, group), names_from = "names", values_from = "values") %>%
+  drop_na()
+
+testWide <- testNormed %>%
+  pivot_wider(id_cols = c(id, group), names_from = "names", values_from = "values") %>%
+  drop_na()
+```
+
+The classification algorithm chosen for this report is a [Support vector machine](http://web.mit.edu/6.034/wwwbob/svm-notes-long-08.pdf) (SVM) - a machine learning technique that seeks to fit a hyperplane of support vectors to the data and maximise the difference between the classes relative to the vectors. The classifier can be trained on the train data with the following:
+
+```{r, message = FALSE, warning = FALSE}
+# Dynamically create model formula to save typing out all the features
+
+features <- colnames(trainWide)[3:24]
+myformula <- as.formula(paste("group ~ ", paste(features, collapse = "+")))
+
+# Fit classifier to train data
+
+m1 <- svm(formula = myformula, 
+             data = trainWide,
+             kernel = 'linear')
+```
+
+Predictive accuracy can be assessed by predicting classes on the test set and computing a confusion matrix to compare predictions with the actual class labels. Evidently, the model predicted the labels of the unseen test data with a balanced accuracy of 86%, which is a promising result for such a fast modelling approach without any hyperparameter tuning.
+
+```{r, message = FALSE, warning = FALSE}
+# Predict class labels on test data
+
+ypred <- predict(m1, testWide)
+
+# Produce confusion matrix summary
+
+confusionMatrix(testWide$group, ypred)
+```
+
+## Summary
+
+A feature-based approach to time-series analysis was successfully able to classify unseen data with an accuracy of 86% balanced between the classes. Practically, this means using the classification algorithm trained here to predict carpet or cement in the real world would yield a far more accurate estimate than if a guess was made. This is especially important, given the speed with which the model was trained and tested. Because it was so fast, this technique could almost be used in real-time if the robot's present surface underneath was unknown. This may hold import ramifications in different areas of commercial and household robotics in terms of the design of the robot's internal computer or in the remote control of robots in areas with poor visibility where the terrain is unknown.
+
+# Reflection on Data Wrangling
+
+Data wrangling was crucial to undertaking this project. From wrangling of the initial webscraped datasets from wide time series in a non-native R format into tidy dataframes, to the production of exploratory data visualisations, to the calculation of features, and production of a classification algorithm. Data wrangling enabled a question of practical importance to be adequately addressed using a novel approach. This project was fortunate in that no dates needed to be parsed, nor missing values handled, but the data wrangling pipelines presented here no doubt would have accommodated these needs easily if they were required. The `tidyverse` collection of packages in R greatly enable programmers to perform tedious and difficult wrangling tasks in an intuitive and efficient way, all of which is amplified by the simple and consistent API and philosophical underpinnings that each package utilises.
