@@ -385,9 +385,21 @@ ggplotly(p)
 
 What questions do you have about the data? Insert your analysis here.
 
+## Executive Summary
+
+This document sought to investigate the NYC Water Quality Monitoring dataset. Some initial issues were highlighted, including a lack of consistency in detail between measures presented in the report and the data itself. Exploratory data analysis revealed interesting patterns in the data and a variety of issues for further analysis, such as missing data, skew, and outliers. Preliminary investigation of the distribution of residual free chlorine by month over the whole dataset revealed that most months are somewhat roughly Gaussian, however, the distributions do appear leptykurtic (very high probability density in the middle) - as evidenced by the skinny distributions.
+
+## Research Question: Is residual free chlorine normally distributed across months for the entire dataset?
 
 ```{r}
-# Code...
+data %>%
+  mutate(year = year(`Sample Date`)) %>%
+  ggplot(aes(x = `Residual Free Chlorine (mg/L)`)) +
+  geom_histogram(alpha = 0.9, fill = "steelblue2", binwidth = 0.01) +
+  labs(title = "Distribution of residual free chlorine by month for 2019",
+       x = "Residual Free Chlorine (mg/L)",
+       y = "Frequency") +
+  facet_wrap(~`Month Number`, scales = "free")
 ```
 
 
