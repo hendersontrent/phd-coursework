@@ -310,7 +310,7 @@ plot_quality_matrix(feature_matrix)
 
 ## Low dimension representation
 
-The new 22-dimension feature space can be further simplified by calculating a plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is principal components analysis (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in the figure below. Evidently, there appears to be clear separation between the classes (carpet or cement) in the low dimension space of the first two principal components. This bodes well for the consideration of classification algorithms.
+The new 22-dimension feature space can be further simplified by calculating and plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is principal components analysis (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in the figure below. Evidently, there appears to be clear separation between the classes (carpet or cement) in the low dimension space of the first two principal components. This bodes well for the consideration of classification algorithms.
 
 ```{r lowdim, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Low dimension representation of SonyAIBORobotSurface1"}
 plot_low_dimension(featMat, 
@@ -348,13 +348,13 @@ Evidently, neither matrix visualisation reveals particularly informative structu
 
 ## Summary
 
-Evidently, a feature-based approach to time-series analysis can reveal rich and interesting information about the empirical structure of the data. In particular, the low dimension representation strongly suggested that features could be used to predict class membership (i.e. robot walking on carpet or cement). This was visible through the clear separation of the classes in the two-dimensional space. This separation may be even more pronounced across the entire 22 dimensions, though this cannot be easily visualised. Extending this visualisation-based approach to more rigorous computational classification must be performed.
+Evidently, a feature-based approach to time-series analysis can reveal rich and interesting information about the empirical structure of the data. In particular, the low dimension representation strongly suggests that features could be used to predict class membership (i.e. robot walking on carpet or cement). This was visible through the clear separation of the classes in the two-dimensional space. This separation may be even more pronounced across the entire 22 dimensions, though this cannot be easily visualised. Extending this visualisation-based approach to more rigorous computational classification must be performed.
 
 # Research Question 2 - Can a time series feature-based classifier be trained to accurately predict labels in the test set?
 
-With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. The present report is particularly interested in whether a subset of the feature vectors be used to train a classifier that can accurately predict whether the robot was walking on carpet or cement in unseen data. This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
+With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. The present report is particularly interested in whether a subset of the feature vectors be used to train a classifier that can accurately predict whether a robot was walking on carpet or cement in unseen data. This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
 
-The feature matrix can be wrangled into formats appropriate for modelling through the following:
+The feature matrix can be wrangled into formats appropriate for a train-test modelling pipeline through the following:
 
 ```{r, message = FALSE, warning = FALSE}
 # Separate into train-test splits
