@@ -26,15 +26,14 @@ tmp <- data.frame(ball = c("Old", "New", "Old", "New", "Old", "New"),
 
 # Draw graphic
 
-CairoPNG("olet5402/images/expectations.png", 400, 300)
+CairoPNG("olet5402/images/expectations.png", 400, 250)
 p <- tmp %>%
   ggplot(aes(x = handicap, y = spinrate, colour = ball)) +
   geom_point(size = 2.5) +
   geom_errorbar(aes(ymin = lower, ymax = upper)) +
   labs(x = "Handicap Grouping",
-       y = "Spin Rate (Revolutions per Minute)",
-       colour = "Ball Type",
-       caption = "Error bars indicate estimated 95% confidence intervals") +
+       y = "Spin Rate (RPM)",
+       colour = "Ball Type") +
   scale_y_continuous(labels = comma) +
   theme(legend.position = "bottom",
         legend.key = element_rect(fill = NA))
