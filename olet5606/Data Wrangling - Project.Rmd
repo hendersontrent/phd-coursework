@@ -72,6 +72,14 @@ library(e1071)
 library(caret)
 ```
 
+## Data Provenance
+
+The [UEA & UCR Time Series Classification Repository](www.timeseriesclassification.com) is a website which contains a large set of univariate and multivariate time-series datasets that are used for benchmarking and testing of classification algorithms. The repository is maintained by prominent time series authors across two universities. The repository currently includes 128 univariate and 30 multivariate time-series datasets. These datasets included in the repository are considered the 'gold standard' for which researchers and analysts must benchmark their novel approaches against. Many papers have been presented on algorithms fit to these datasets and the datasets themselves, such as the popular [The Great Time Series Classification Bake-Off](https://arxiv.org/abs/1602.01711). While questions regarding the individual datasets themselves that comprise the repository could be raised, the scope of this is far beyond that of the present report. However, given the prominence of the repository in the time series field, it can very likely be taken that the reliability and replicability of the measurements contained within is high.
+
+## Domain knowledge
+
+All data contained and reported within this report was sourced directly from the repository's webpage using a simple webscraper that was written to only extract the two-class univariate problems. There are no concerns with privacy or ethics for this data as the repository openly enables (and welcomes) downloads. However, some domain knowledge of the format the data is stored in is needed for automated downloading and parsing. The author spent time manually inspecting the structure of a sample of the target datasets prior to writing the webscraper to ensure it would work in the most automated way possible. Some prior knowledge of indicative time series dataset structure is needed to perform this inspection. The webscraper was written simply to programmatically download and extract only the two-class problems, rather than downloading the entire univariate library from the start - which is a much larger file. This download is stored in a temporary file which is deleted upon closure of the R session to save local disk memory. However, the user can specify to save the cleaned and parsed version of the data, which is more memory efficient than storing both the initial zip file and the processes data. While the number and range of datasets contained in the repository spans a large number and variety, the datasets do not cover all fields of science. Importantly, the datasets do not include any synthetic (simulated) data. This means any inferences drawn from the applied datasets contained within may not generalise to synthetic data.
+
 ```{r, warning = FALSE, message = FALSE, results = 'hide'}
 #' Function to automatically webscrape and parse Time Series Classification univariate two-class classification datasets
 #' 
@@ -144,7 +152,7 @@ pullTSCprobs <- function(){
       
       train2 <- train %>%
         mutate(problem = i) %>%
-        tidyr::pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
+        pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
         mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
       
       # Test
@@ -154,7 +162,7 @@ pullTSCprobs <- function(){
       
       test2 <- test %>%
         mutate(problem = i) %>%
-        tidyr::pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
+        pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
         mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
       
       #------
@@ -174,17 +182,9 @@ pullTSCprobs <- function(){
 allProbs <- pullTSCprobs()
 ```
 
-## Data Provenance
-
-The [UEA & UCR Time Series Classification Repository](www.timeseriesclassification.com) is a website which contains a large set of univariate and multivariate time-series datasets that are used for benchmarking and testing of classification algorithms. The repository is maintained by prominent time series authors across two universities. The repository currently includes 128 univariate and 30 multivariate time-series datasets. These datasets included in the repository are considered the 'gold standard' for which researchers and analysts must benchmark their novel approaches against. Many papers have been presented on algorithms fit to these datasets and the datasets themselves, such as the popular [The Great Time Series Classification Bake-Off](https://arxiv.org/abs/1602.01711). While questions regarding the individual datasets themselves that comprise the repository could be raised, the scope of this is far beyond that of the present report. However, given the prominence of the repository in the time series field, it can very likely be taken that the reliability and replicability of the measurements contained within is high.
-
-## Domain knowledge
-
-All data contained and reported within this report was sourced directly from the repository's webpage using a simple webscraper that was written to only extract the two-class univariate problems (code presented in the section below). There are no concerns with privacy or ethics for this data aas the repository openly enables (and welcomes) downloads. The webscraper was written simply to programmatically download and extract only the two-class problems, rather than downloading the entire univariate library from the start - which is a very large file. While the number and range of datasets contained in the repository spans a large number and variety, the datasets do not cover all fields of science. Importantly, the datasets do not include any synthetic (simulated) data. This means any inferences drawn from the applied datasets contained within may not generalise to synthetic data.
-
 ## Data structure
 
-As this data was webscraped for a ongoing purposes beyond this report, there are 42 `r length(unique(allProbs$problem))` different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of some high-level descriptive properties of each is presented in the figure below.
+As this data was webscraped for ongoing purposes beyond this report, there are `r length(unique(allProbs$problem))` different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of some high-level descriptive properties of each is presented in the figure below.
 
 ```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
 p <- allProbs %>%
@@ -268,7 +268,7 @@ No missing data is present in the dataset (see figure below).
 naniar::vis_miss(SonyAIBORobotSurface1, warn_large_data = FALSE)
 ```
 
-The distribution of values across both train-test split and class grouping is presented in the figure below. Evidently, value medians across each time series are similar (as indicated by horizontal line through each box), however, there are numerous outliers for each group split. Given the nature of following the analysis presented in this report (details provided in the next section), the presence of outliers and heavy-tailed distributions of values is not a concern.
+The distribution of values across both train-test split and class grouping is presented in the figure below. Evidently, value medians across each time series are similar (as indicated by horizontal line through each box), however, there are numerous outliers for each group split. Given the nature of the following analysis presented in this report (details provided in the next section), the presence of outliers and some heavy-tailed distributions of values is not a concern.
 
 ```{r boxplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Visualisation of value distributions by group"}
 p2 <- SonyAIBORobotSurface1 %>%
@@ -290,7 +290,7 @@ The raw time series are interesting, however, they do not immediately provide us
 
 ## Feature calculation
 
-One particular feature set that has been particularly prominent in the academic literature is [`catch22`](https://github.com/chlubba/catch22) - a set of 22 time-series characteristics that have been shown to be minimally redundant while maximising classification accuracy across a broad range of problems. This feature set is implemented in R through the [`Rcatch22`](https://cran.r-project.org/web/packages/Rcatch22/index.html) package. For convenience, `Rcatch22` and a host of other feature sets across both R and Python has been built in the package [`theft`](https://github.com/hendersontrent/theft) which automates the entire workflow from feature calculation to data visualisation in a format consistent with the broader [`tidyverse`](https://www.tidyverse.org).
+One particular feature set that has been particularly prominent in the academic literature is [`catch22`](https://github.com/chlubba/catch22) - a set of 22 time-series characteristics that have been shown to be minimally redundant while maximising classification accuracy across a broad range of problems. This feature set is implemented in R through the [`Rcatch22`](https://cran.r-project.org/web/packages/Rcatch22/index.html) package. For convenience, `Rcatch22` and a host of other feature sets across both R and Python has been built into the package [`theft`](https://github.com/hendersontrent/theft) which automates the entire workflow from feature calculation to data visualisation in a format consistent with the broader [`tidyverse`](https://www.tidyverse.org).
 
 ```{r, message = FALSE, warning = FALSE}
 feature_matrix <- calculate_features(data = SonyAIBORobotSurface1, 
@@ -313,7 +313,7 @@ featMat <- feature_matrix %>%
 
 ## Feature calculation quality
 
-Any issues with the calculation of features can be understood easily by computing the proportion of value types (good, `NaN`, `Inf/-Inf`) by feature. The plot below depicts this. Evidently, no issues with feature computation are evident, with 100% of values being classed as good.
+Any issues with the calculation of features can be understood easily by computing the proportion of value types (good, `NaN`, `Inf/-Inf`) by feature. The plot below depicts this. Evidently, no issues with feature computation are evident, with 100% of values being classified as good.
 
 ```{r qualityplot, message = FALSE, warning = FALSE}
 plot_quality_matrix(feature_matrix)
@@ -321,7 +321,7 @@ plot_quality_matrix(feature_matrix)
 
 ## Low dimension representation
 
-The new 22-dimension feature space can be further simplified by calculating and plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is principal components analysis (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in the figure below. Evidently, there appears to be clear separation between the classes (carpet or cement) in the low dimension space of the first two principal components. This bodes well for the consideration of classification algorithms.
+The new 22-dimension feature space can be further simplified by calculating and plotting a low dimension representation to assess if any empirical structure exists in the data. A common method for doing this is [principal components analysis](https://royalsocietypublishing.org/doi/10.1098/rsta.2015.0202) (PCA); whose first two components can be easily graphed as a scatterplot. The `theft` package automates the normalisation of features before the PCA calculation to avoid any issues that may arise with unequal variance across the features. A simple z-score normalisation method was chosen for this analysis as it enables an intuitive interpretation of the resulting values compared to other rescaling options. This plot is presented in the figure below. Evidently, there appears to be clear separation between the classes (carpet or cement) in the low dimension space of the first two principal components. This bodes well for the consideration of classification algorithms.
 
 ```{r lowdim, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Low dimension representation of SonyAIBORobotSurface1"}
 plot_low_dimension(featMat, 
@@ -335,7 +335,7 @@ plot_low_dimension(featMat,
 
 ## Matrix visualisations
 
-Further structure in the data can be assessed through pairwise relationships between the feature vectors. These relationships can be plotted as matrices in a gradient-filled format that resembles a "heatmap". This type of graphic is a standard output of `theft` functions, which also handles the computation of [Pearson product-moment correlations](https://journals.lww.com/anesthesia-analgesia/fulltext/2018/05000/correlation_coefficients__appropriate_use_and.50.aspx) and the hierarchical clustering of results to visually reveal any structure in the data once plotted in the heatmap. The z-score normalisation method was again applied for both of these graphics. This is presented for a matrix of Feature x Unique Time Series in the figure below.
+Further structure in the data can be assessed through pairwise relationships between the feature vectors. These relationships can be plotted as matrices in a gradient-filled format that resembles a "heatmap". This type of graphic is a standard output of `theft` functions, which also handles the computation of [Pearson product-moment correlations](https://journals.lww.com/anesthesia-analgesia/fulltext/2018/05000/correlation_coefficients__appropriate_use_and.50.aspx) and the [hierarchical clustering](https://link.springer.com/content/pdf/10.1007/BF02289588.pdf) of results to visually reveal any structure in the data once plotted in the heatmap. The z-score normalisation method was again applied for both of these graphics. This is presented for a matrix of Feature x Unique Time Series in the figure below.
 
 ```{r matrix1, message = FALSE, warning = FALSE, fig.keep = TRUE, fig.cap = "Pairwise relationships between features and unique time series"}
 plot_feature_matrix(featMat, 
@@ -363,7 +363,7 @@ Evidently, a feature-based approach to time-series analysis can reveal rich and 
 
 # Research Question 2 - Can a time series feature-based classifier be trained to accurately predict labels in the test set?
 
-With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. The present report is particularly interested in whether a subset of the feature vectors be used to train a classifier that can accurately predict whether a robot was walking on carpet or cement in unseen data. This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
+With a strong understanding of the data, attention can be turned to tasks of immediate practical importance. The present report is particularly interested in whether a sample of the feature vectors be used to train a classifier that can accurately predict whether a robot was walking on carpet or cement in unseen data. This task is important, as learning the dynamics and temporal properties of the robot may better enable predictive technology such as risk assessment and damage management, among other uses.
 
 The feature matrix can be wrangled into formats appropriate for a train-test modelling pipeline through the following:
 
@@ -411,7 +411,7 @@ testWide <- testNormed %>%
   drop_na()
 ```
 
-The classification algorithm chosen for this report is a [Support vector machine](http://web.mit.edu/6.034/wwwbob/svm-notes-long-08.pdf) (SVM) - a machine learning technique that seeks to fit a hyperplane of support vectors to the data and maximise the difference between the classes relative to the vectors. The classifier can be trained on the train data with the following:
+The classification algorithm chosen for this report is a [Support vector machine](http://web.mit.edu/6.034/wwwbob/svm-notes-long-08.pdf) (SVM) - a machine learning technique that seeks to fit a hyperplane of support vectors to the data and maximise the distance between the classes relative to the vectors. The classifier can be trained on the train data with the following:
 
 ```{r, message = FALSE, warning = FALSE}
 # Dynamically create model formula to save typing out all the features
@@ -440,10 +440,10 @@ confusionMatrix(testWide$group, ypred)
 
 ## Summary
 
-A feature-based approach to time-series analysis was successfully able to classify unseen data with an accuracy of 86% balanced between the classes. Practically, this means using the classification algorithm trained here to predict carpet or cement in the real world would yield a far more accurate estimate than if a guess was made. This is especially important, given the speed with which the model was trained and tested. Because it was so fast, this technique could almost be used in real-time if the robot's present surface underneath was unknown. This may hold import ramifications in different areas of commercial and household robotics in terms of the design of the robot's internal computer or in the remote control of robots in areas with poor visibility where the terrain is unknown.
+A feature-based approach to time-series analysis was successfully able to classify unseen data with an accuracy of 86% balanced between the classes. Practically, this means using the classification algorithm trained here to predict carpet or cement in the real world would yield a far more accurate estimate than if a guess was made. This is especially important, given the speed with which the model was trained and tested. Because it was so fast, this technique could be used in almost real-time if the robot's surface underneath was unknown. This may hold import ramifications in different areas of commercial and household robotics in terms of the design of the robot's internal computer or in the remote control of robots in areas with poor visibility where the terrain is unknown.
 
 # Reflection on Data Wrangling
 
-Data wrangling was crucial to undertaking this project. From wrangling of the initial webscraped datasets from wide time series in a non-native R format into tidy dataframes, to the production of exploratory data visualisations, to the calculation of features and development of a classification algorithm. Data wrangling enabled a question of practical importance to be adequately addressed using a novel approach. This project was fortunate in that no dates needed to be parsed, nor missing values handled, but the data wrangling pipelines presented here no doubt would have accommodated these needs easily if they were required. The `tidyverse` collection of packages in R greatly enables programmers to perform tedious and difficult wrangling tasks in an intuitive and efficient way, all of which is amplified by the simple and consistent API and philosophical underpinnings that each package utilises. 
+Data wrangling was crucial to undertaking this project. From wrangling of the initial webscraped datasets from wide time series in a non-native R format into tidy dataframes, to the production of exploratory data visualisations, to the calculation of features and development of a classification algorithm. Data wrangling enabled a question of practical importance to be adequately addressed using a novel approach. This project was fortunate in that no dates needed to be parsed, nor missing values handled, but the data wrangling pipelines presented here no doubt would have accommodated these needs easily if they were required. The `tidyverse` collection of packages in R greatly enables programmers to perform tedious and difficult wrangling tasks in an intuitive and efficient way, all of which is straightforward by the simple and consistent API and philosophical underpinnings that each package within it utilises. 
 
-One of the most important pieces of the workflow which was made straightforward with R's data wrangling tools was the manipulation of dataframes from wide to long (and back to wide). Many time series datasets from outside of R are stored in wide-format matrices, which makes plotting and summarising this data using tools such as `dplyr` and `ggplot` very difficult. Data wrangling tools such as `tidyr` enabled us to easily wrangle this data between long and wide, adjust and normalise columns, and perform other manipulations prior to computing summary statistics or producing graphics. Moreover, the final statistical learning model required each variable to be a column, meaning the previously long dataframes appropriate for faceted graphics were unsuitable for modelling. Data wrangling tools easily enabled this to be manipulated back into the correct format.
+One of the most important pieces of the workflow which was made significantly easier with R's data wrangling tools was the manipulation of dataframes from wide to long (and back to wide). Many time series datasets from outside of R are stored in wide format matrices without column names, which makes automatically plotting and summarising this data using tools such as `dplyr` and `ggplot` very difficult. Data wrangling tools such as `tidyr` enabled us to easily wrangle this data between long and wide, adjust and normalise columns, and perform other manipulations prior to computing summary statistics or producing graphics. Moreover, the final statistical learning model required each variable to be a column, meaning the previously long dataframes appropriate for faceted graphics were unsuitable for modelling. Data wrangling tools easily enabled this to be manipulated back into the correct format.
