@@ -72,6 +72,14 @@ library(e1071)
 library(caret)
 ```
 
+## Data Provenance
+
+The [UEA & UCR Time Series Classification Repository](www.timeseriesclassification.com) is a website which contains a large set of univariate and multivariate time-series datasets that are used for benchmarking and testing of classification algorithms. The repository is maintained by prominent time series authors across two universities. The repository currently includes 128 univariate and 30 multivariate time-series datasets. These datasets included in the repository are considered the 'gold standard' for which researchers and analysts must benchmark their novel approaches against. Many papers have been presented on algorithms fit to these datasets and the datasets themselves, such as the popular [The Great Time Series Classification Bake-Off](https://arxiv.org/abs/1602.01711). While questions regarding the individual datasets themselves that comprise the repository could be raised, the scope of this is far beyond that of the present report. However, given the prominence of the repository in the time series field, it can very likely be taken that the reliability and replicability of the measurements contained within is high.
+
+## Domain knowledge
+
+All data contained and reported within this report was sourced directly from the repository's webpage using a simple webscraper that was written to only extract the two-class univariate problems. There are no concerns with privacy or ethics for this data as the repository openly enables (and welcomes) downloads. However, some domain knowledge of the format the data is stored in is needed for automated downloading and parsing. The author spent time manually inspecting the structure of a sample of the target datasets prior to writing the webscraper to ensure it would work in the most automated way possible. Some prior knowledge of indicative time series dataset structure is needed to perform this inspection. The webscraper was written simply to programmatically download and extract only the two-class problems, rather than downloading the entire univariate library from the start - which is a much larger file. This download is stored in a temporary file which is deleted upon closure of the R session to save local disk memory. However, the user can specify to save the cleaned and parsed version of the data, which is more memory efficient than storing both the initial zip file and the processes data. While the number and range of datasets contained in the repository spans a large number and variety, the datasets do not cover all fields of science. Importantly, the datasets do not include any synthetic (simulated) data. This means any inferences drawn from the applied datasets contained within may not generalise to synthetic data.
+
 ```{r, warning = FALSE, message = FALSE, results = 'hide'}
 #' Function to automatically webscrape and parse Time Series Classification univariate two-class classification datasets
 #' 
@@ -144,7 +152,7 @@ pullTSCprobs <- function(){
       
       train2 <- train %>%
         mutate(problem = i) %>%
-        tidyr::pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
+        pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
         mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
       
       # Test
@@ -154,7 +162,7 @@ pullTSCprobs <- function(){
       
       test2 <- test %>%
         mutate(problem = i) %>%
-        tidyr::pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
+        pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
         mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
       
       #------
@@ -174,17 +182,9 @@ pullTSCprobs <- function(){
 allProbs <- pullTSCprobs()
 ```
 
-## Data Provenance
-
-The [UEA & UCR Time Series Classification Repository](www.timeseriesclassification.com) is a website which contains a large set of univariate and multivariate time-series datasets that are used for benchmarking and testing of classification algorithms. The repository is maintained by prominent time series authors across two universities. The repository currently includes 128 univariate and 30 multivariate time-series datasets. These datasets included in the repository are considered the 'gold standard' for which researchers and analysts must benchmark their novel approaches against. Many papers have been presented on algorithms fit to these datasets and the datasets themselves, such as the popular [The Great Time Series Classification Bake-Off](https://arxiv.org/abs/1602.01711). While questions regarding the individual datasets themselves that comprise the repository could be raised, the scope of this is far beyond that of the present report. However, given the prominence of the repository in the time series field, it can very likely be taken that the reliability and replicability of the measurements contained within is high.
-
-## Domain knowledge
-
-All data contained and reported within this report was sourced directly from the repository's webpage using a simple webscraper that was written to only extract the two-class univariate problems (code presented in the section below). There are no concerns with privacy or ethics for this data aas the repository openly enables (and welcomes) downloads. The webscraper was written simply to programmatically download and extract only the two-class problems, rather than downloading the entire univariate library from the start - which is a very large file. While the number and range of datasets contained in the repository spans a large number and variety, the datasets do not cover all fields of science. Importantly, the datasets do not include any synthetic (simulated) data. This means any inferences drawn from the applied datasets contained within may not generalise to synthetic data.
-
 ## Data structure
 
-As this data was webscraped for a ongoing purposes beyond this report, there are 42 `r length(unique(allProbs$problem))` different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of some high-level descriptive properties of each is presented in the figure below.
+As this data was webscraped for ongoing purposes beyond this report, there are `r length(unique(allProbs$problem))` different datasets available - corresponding to the different univariate time series classification problems available on the repository. A summary of some high-level descriptive properties of each is presented in the figure below.
 
 ```{r structplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Descriptive statistics for each time-series dataset"}
 p <- allProbs %>%
@@ -268,7 +268,7 @@ No missing data is present in the dataset (see figure below).
 naniar::vis_miss(SonyAIBORobotSurface1, warn_large_data = FALSE)
 ```
 
-The distribution of values across both train-test split and class grouping is presented in the figure below. Evidently, value medians across each time series are similar (as indicated by horizontal line through each box), however, there are numerous outliers for each group split. Given the nature of following the analysis presented in this report (details provided in the next section), the presence of outliers and heavy-tailed distributions of values is not a concern.
+The distribution of values across both train-test split and class grouping is presented in the figure below. Evidently, value medians across each time series are similar (as indicated by horizontal line through each box), however, there are numerous outliers for each group split. Given the nature of the following analysis presented in this report (details provided in the next section), the presence of outliers and some heavy-tailed distributions of values is not a concern.
 
 ```{r boxplot, warning = FALSE, message = FALSE, fig.keep = TRUE, fig.cap = "Visualisation of value distributions by group"}
 p2 <- SonyAIBORobotSurface1 %>%
