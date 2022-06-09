@@ -36,33 +36,34 @@ library(theft)
 library(foreign)
 library(factoextra)
 library(ggpubr)
+library(broom)
 
 #-------- Pull the dataset ---------
 
-temp <- tempfile()
-download.file("https://www.timeseriesclassification.com/Downloads/Earthquakes.zip", temp, mode = "wb")
-
-# Clean up data
-
 #' Function to load and process files into a single tidy dataframe
-#' @param tmp tempfile to operate on
+#' @param problem string specifying the problem to use
 #' @return an object of class dataframe
 #' @author Trent Henderson
 #' 
 
-tidy_arff_files <- function(tmp){
+tidy_arff_file <- function(problem){
+  
+  # Pull the dataset
+  
+  temp <- tempfile()
+  download.file(paste0("https://www.timeseriesclassification.com/Downloads/", problem, ".zip"), temp, mode = "wb")
   
   #-----------------------------
   # Grab the train and test data
   #-----------------------------
   
-  train <- foreign::read.arff(unz(tmp, paste0("Earthquakes_TRAIN.arff"))) %>%
+  train <- foreign::read.arff(unz(temp, paste0(problem, "_TRAIN.arff"))) %>%
     mutate(id = row_number()) %>%
     mutate(set_split = "Train")
   
   themax <- max(train$id) # To add in test set to avoid duplicate IDs
   
-  test <- foreign::read.arff(unz(tmp, paste0("Earthquakes_TEST.arff"))) %>%
+  test <- foreign::read.arff(unz(temp, paste0(problem, "_TEST.arff"))) %>%
     mutate(id = row_number() + themax) %>% # Adjust relative to train set to stop double-ups
     mutate(set_split = "Test")
   
@@ -96,7 +97,7 @@ tidy_arff_files <- function(tmp){
   return(outs)
 }
 
-tmp <- tidy_arff_files(tmp = temp)
+tmp <- tidy_arff_file(problem = "Chinatown")
 
 #-------- Calculate features ---------
 
@@ -237,13 +238,69 @@ eigenplots <- ggpubr::ggarrange(p, p1, p2, nrow = 3, ncol = 1, common.legend = T
 print(eigenplots)
 ```
 
-
-
 XX
 
-```{r, echo = FALSE, warning = FALSE, message = FALSE}
+See Figure \@ref(fig:biplot)).
 
+```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains 30.5% of the variance in the Chinatown dataset. The second principal component (positioned along the $y$-axis) explains 17.1% of the variance in the Chinatown dataset. Despite some overlap, meaningful class separation is visible between the $Weekend$ and $Weekday$ classes.", echo = FALSE, warning = FALSE, message = FALSE}
+# Get eigenvalues and summary stats for plot
+
+eigen_summary <- fits %>%
+  broom::tidy(matrix = "eigenvalues") %>%
+  dplyr::filter(.data$PC %in% c(1, 2)) %>% # Filter to just the 2 going in the plot
+  dplyr::select(c(.data$PC, .data$percent)) %>%
+  dplyr::mutate(percent = round(.data$percent * 100), digits = 1)
+
+eigen_pc1 <- eigen_summary %>%
+  dplyr::filter(.data$PC == 1)
+
+eigen_pc2 <- eigen_summary %>%
+  dplyr::filter(.data$PC == 2)
+
+eigen_pc1 <- paste0(eigen_pc1$percent,"%")
+eigen_pc2 <- paste0(eigen_pc2$percent,"%")
+
+# Get group data
+
+groups <- outs %>%
+  dplyr::rename(group_id = group) %>%
+  dplyr::group_by(.data$id, .data$group_id) %>%
+  dplyr::summarise(counter = dplyr::n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(-c(.data$counter)) %>%
+  dplyr::mutate(id = as.factor(.data$id)) %>%
+  dplyr::mutate(group_id = ifelse(.data$group_id == "1", "Weekend", "Weekday")) %>%
+  dplyr::mutate(group_id = factor(.data$group_id, levels = c("Weekend", "Weekday")))
+
+# Draw plot
+
+pca_plot <- fits %>%
+  broom::augment(fit_mat) %>%
+  dplyr::rename(id = 1) %>%
+  dplyr::mutate(id = as.factor(.data$id)) %>%
+  dplyr::rename(.fitted1 = .data$.fittedPC1,
+                .fitted2 = .data$.fittedPC2) %>%
+  dplyr::inner_join(groups, by = c("id" = "id")) %>%
+  dplyr::mutate(group_id = as.factor(.data$group_id)) %>%
+  ggplot2::ggplot(ggplot2::aes(x = .data$.fitted1, y = .data$.fitted2)) +
+  ggplot2::stat_ellipse(ggplot2::aes(x = .data$.fitted1, y = .data$.fitted2, fill = .data$group_id), geom = "polygon", alpha = 0.2) +
+  ggplot2::guides(fill = "none") +
+  ggplot2::scale_fill_brewer(palette = "Dark2") +
+  ggplot2::geom_point(size = 2, ggplot2::aes(colour = .data$group_id)) + 
+  ggplot2::labs(title = "Principal components analysis biplot",
+                x = paste0("PC 1"," (", eigen_pc1, ")"),
+                y = paste0("PC 2"," (", eigen_pc2, ")"),
+                colour = NULL) +
+  ggplot2::scale_colour_brewer(palette = "Dark2") +
+  ggplot2::theme_bw() +
+  ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
+                 legend.position = "bottom",
+                 plot.title = element_text(face = "bold"))
+
+print(pca_plot)
 ```
+
+XX
 
 ## Time-series classification
 
