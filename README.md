@@ -8,3 +8,4 @@ This repository is organised by The University of Sydney course name. Each subfo
 * OLET5608 - Linear Modelling
 * OLET5402 - Basics of Quantitative Research Design
 * OLET5606 - Data Wrangling
+* OLET5610 - Multivariate Data Analysis
