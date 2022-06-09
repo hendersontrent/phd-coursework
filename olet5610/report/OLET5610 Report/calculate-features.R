@@ -72,6 +72,7 @@ tidy_arff_file <- function(problem){
 }
 
 tmp <- tidy_arff_file(problem = "Chinatown")
+save(tmp, file = "olet5610/report/OLET5610 Report/tmp.Rda")
 
 #-------- Calculate features ---------
 

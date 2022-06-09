@@ -45,6 +45,7 @@ library(caret)
 
 # Load the dataset
 
+load("tmp.Rda")
 load("outs.Rda")
 
 # Get feature matrix size to highlight dimensionality
@@ -60,9 +61,9 @@ XX
 
 XX
 
-See Figure \@ref(fig:eigenplots)).
+See Figure \@ref(fig:eigenplots).
 
-```{r eigenplots, fig.cap = "Summary of nineteen retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the nineteen plotted here (from the original 313). (C) Eigenvalues of the nineteen retained principal components are plotted in descending order. All retained components exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r eigenplots, fig.cap = "Summary of nineteen retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the nineteen plotted here (from the original 313). (C) Eigenvalues of the nineteen retained principal components are plotted in descending order. All retained components exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
 #-------
 # Do PCA
 #-------
@@ -124,7 +125,7 @@ p <- eigs %>%
   geom_bar(stat = "identity", fill = "#1B9E77", alpha = 0.9) +
   geom_line(group = 1, size = 1) +
   geom_point(size = 2) +
-  labs(title = "(A) Percentage of variance explained by retained principal component",
+  labs(title = "(A) Percentage of variance explained by principal component",
        x = "Principal component",
        y = "Variance explained (%)") +
   geom_line() +
@@ -134,7 +135,8 @@ p <- eigs %>%
                      labels = function(x)paste(x, "%")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold"))
+        plot.title = element_text(face = "bold"),
+        axis.text = element_text(size = 8))
 
 # Draw cumulative variance plot
 
@@ -144,7 +146,7 @@ p1 <- eigs %>%
   geom_line(group = 1, size = 1) +
   geom_point(size = 2) +
   geom_hline(yintercept = 80, lty = "dashed", colour = "black", size = 1) +
-  labs(title = "(B) Cumulative variance explained by retained principal components",
+  labs(title = "(B) Cumulative variance explained by principal components",
        x = "Principal component",
        y = "Cumulative variance explained (%)") +
   scale_y_continuous(limits = c(0, 100),
@@ -152,7 +154,8 @@ p1 <- eigs %>%
                      labels = function(x)paste(x, "%")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold"))
+        plot.title = element_text(face = "bold"),
+        axis.text = element_text(size = 8))
 
 # Draw eigenvalue plot
 
@@ -165,7 +168,8 @@ p2 <- eigs %>%
        y = "Eigenvalue") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold"))
+        plot.title = element_text(face = "bold"),
+        axis.text = element_text(size = 8))
 
 # Combine plots
 
@@ -175,7 +179,7 @@ print(eigenplots)
 
 XX
 
-See Figure \@ref(fig:biplot)).
+See Figure \@ref(fig:biplot).
 
 ```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains 30.5% of the variance in the Chinatown dataset. The second principal component (positioned along the $y$-axis) explains 17.1% of the variance in the Chinatown dataset. Despite some overlap, meaningful class separation is visible between the $Weekend$ and $Weekday$ classes.", echo = FALSE, warning = FALSE, message = FALSE}
 # Get eigenvalues and summary stats for plot
@@ -230,7 +234,9 @@ pca_plot <- fits %>%
   ggplot2::theme_bw() +
   ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
                  legend.position = "bottom",
-                 plot.title = element_text(face = "bold"))
+                 plot.title = element_text(face = "bold"),
+                 axis.text = element_text(size = 8),
+                 axis.title = element_text(size = 9))
 
 print(pca_plot)
 ```
@@ -795,10 +801,12 @@ fit_multi_feature_classifier_tt <- function(data, id_var = "id", group_var = "gr
   
   return(output)
 }
+```
 
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Retain just PCs and class labels
 
-tt_labels <- outs %>%
+tt_labels <- tmp %>%
   dplyr::select(c(id, set_split)) %>%
   distinct() %>%
   mutate(id = as.character(id))
@@ -838,9 +846,9 @@ XX
 
 XX
 
-See Figure \@ref(fig:impplots)).
+See Figure \@ref(fig:impranks). See Figure \@ref(fig:impdists).
 
-```{r impplots, fig.cap = "Variable importance summaries over 30 resamples from random forest classification models. (A) Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 2$ demonstrates the highest number of first rankings for variable importance. (B) Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 2$ demonstrates the highest number of first rankings, indicating that across the 30 resamples (different train-test splits), $PC 2$ is more often than not the most informative predictor of class ($Weekend$ versus $Weekday$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Wrangle variable importance
 
 get_imps <- function(thelist, x){
@@ -867,7 +875,7 @@ imp_ranks <- importances %>%
                                     "PC 16", "PC 17", "PC 18", "PC 19"))) %>%
   ggplot(aes(x = ranker, y = counter)) +
   geom_bar(stat = 'identity', fill = "#1B9E77", alpha = 0.9) +
-  labs(title = "(A) Frequency of variable importance ranks over all resamples",
+  labs(title = "Frequency of variable importance ranks over all resamples",
        x = "Rank",
        y = "Frequency") +
   ggplot2::theme_bw() +
@@ -877,6 +885,10 @@ imp_ranks <- importances %>%
                  strip.background = element_blank()) +
   facet_wrap(~pc)
 
+print(imp_ranks)
+```
+
+```{r impdists, fig.cap = "Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models. $PC 2$ demonstrates the highest mean variable importance values, but with a large variance.", echo = FALSE, warning = FALSE, message = FALSE}
 # Generate distributions of importance
 
 imp_dists <- importances %>%
@@ -886,9 +898,9 @@ imp_dists <- importances %>%
             upper = mu + sd(importance, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(aes(x = reorder(pc, mu), y = mu)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#D95F02", size = 1) +
-  geom_point(colour = "#D95F02", size = 2) +
-  labs(title = "(B) Distribution of variable importance values over all resamples",
+  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#1B9E77", size = 1) +
+  geom_point(colour = "#1B9E77", size = 2) +
+  labs(title = "Distribution of variable importance values over all resamples",
        x = "Principal component",
        y = "Variable importance") +
   coord_flip() +
@@ -898,6 +910,6 @@ imp_dists <- importances %>%
                  plot.title = element_text(face = "bold"),
                  strip.background = element_blank())
 
-importance_plots <- ggpubr::ggarrange(imp_ranks, imp_dists, nrow = 2, ncol = 1, common.legend = TRUE, legend = "bottom")
-print(importance_plots)
+print(imp_dists)
 ```
+
