@@ -38,6 +38,7 @@ library(factoextra)
 library(ggpubr)
 library(broom)
 library(janitor)
+library(caret)
 
 #-------- Pull the dataset ---------
 
