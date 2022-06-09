@@ -41,3 +41,4 @@ vignettes/*.pdf
 # Any coursework data
 
 olet5608/data*
+olet5610/report/OLET5610 Report/*.Rda

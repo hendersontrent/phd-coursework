@@ -36,7 +36,6 @@ XX
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(theft)
 library(foreign)
 library(factoextra)
 library(ggpubr)
@@ -44,79 +43,9 @@ library(broom)
 library(janitor)
 library(caret)
 
-#-------- Pull the dataset ---------
+# Load the dataset
 
-#' Function to load and process files into a single tidy dataframe
-#' @param problem string specifying the problem to use
-#' @return an object of class dataframe
-#' @author Trent Henderson
-#' 
-
-tidy_arff_file <- function(problem){
-  
-  # Pull the dataset
-  
-  temp <- tempfile()
-  download.file(paste0("https://www.timeseriesclassification.com/Downloads/", problem, ".zip"), temp, mode = "wb")
-  
-  #-----------------------------
-  # Grab the train and test data
-  #-----------------------------
-  
-  train <- foreign::read.arff(unz(temp, paste0(problem, "_TRAIN.arff"))) %>%
-    mutate(id = row_number()) %>%
-    mutate(set_split = "Train")
-  
-  themax <- max(train$id) # To add in test set to avoid duplicate IDs
-  
-  test <- foreign::read.arff(unz(temp, paste0(problem, "_TEST.arff"))) %>%
-    mutate(id = row_number() + themax) %>% # Adjust relative to train set to stop double-ups
-    mutate(set_split = "Test")
-  
-  #----------------------------
-  # Wrangle data to long format
-  #----------------------------
-  
-  # Train
-  
-  thecolstr <- colnames(train)
-  keepcolstr <- thecolstr[!thecolstr %in% c("target", "id", "set_split")]
-  
-  train <- train %>%
-    pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
-    mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
-  
-  # Test
-  
-  thecolste <- colnames(test)
-  keepcolste <- thecolste[!thecolste %in% c("target", "id", "set_split")]
-  
-  test <- test %>%
-    pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
-    mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
-  
-  #------
-  # Merge
-  #------
-  
-  outs <- bind_rows(train, test)
-  return(outs)
-}
-
-tmp <- tidy_arff_file(problem = "Chinatown")
-
-#-------- Calculate features ---------
-
-# Fix Python environment to where the Python libraries are installed on my machine
-
-init_theft("~/opt/anaconda3/bin/python")
-
-# Extract time-series features
-
-outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint", 
-                           values_var = "values", group_var = "target", 
-                           feature_set = c("catch22", "tsfresh", "TSFEL", "Kats"), 
-                           catch24 = TRUE, tsfresh_cleanup = FALSE, seed = 123)
+load("outs.Rda")
 
 # Get feature matrix size to highlight dimensionality
 
@@ -152,7 +81,7 @@ mywhere <- function(fn) {
   }
 }
 
-fits <- outs %>%
+fit_mat <- outs %>%
   dplyr::select(id, names, values) %>%
   tidyr::pivot_wider(id_cols = "id", names_from = "names", values_from = "values") %>%
   tibble::column_to_rownames(var = "id") %>%
@@ -162,11 +91,11 @@ fits <- outs %>%
 
 # Get feature matrix size to highlight dimensionality
 
-print(paste0(nrow(fits), " x ", ncol(fits)))
+#print(paste0(nrow(fit_mat), " x ", ncol(fit_mat)))
 
 # Fit PCA
 
-fits <- fits %>%
+fits <- fit_mat %>%
   stats::prcomp(scale = TRUE)
 
 #------------------------
@@ -866,6 +795,23 @@ fit_multi_feature_classifier_tt <- function(data, id_var = "id", group_var = "gr
   
   return(output)
 }
+
+# Retain just PCs and class labels
+
+tt_labels <- outs %>%
+  dplyr::select(c(id, set_split)) %>%
+  distinct() %>%
+  mutate(id = as.character(id))
+
+X <- fits %>%
+  broom::augment(fit_mat) %>%
+  dplyr::select(c(".rownames", .fittedPC1:.fittedPC19)) %>%
+  rename(id = .rownames) %>%
+  left_join(groups, by = c("id" = "id")) %>%
+  left_join(tt_labels, by = c("id" = "id")) %>%
+  clean_names() %>%
+  pivot_longer(cols = fitted_pc1:fitted_pc19, names_to = "names", values_to = "values") %>%
+  mutate(method = "PCA")
 
 # Set up storage for variable importances
 
