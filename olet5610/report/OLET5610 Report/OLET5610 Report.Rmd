@@ -128,7 +128,7 @@ XX
 
 See Figure \@ref(fig:eigenplots)).
 
-```{r eigenplots, fig.cap = "Summary of nineteen retained rincipal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the nineteen plotted here (from the original 313). (C) Eigenvalues of the nineteen retained principal components are plotted in descending order. All retained components exceed the $\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r eigenplots, fig.cap = "Summary of nineteen retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the nineteen plotted here (from the original 313). (C) Eigenvalues of the nineteen retained principal components are plotted in descending order. All retained components exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE}
 #-------
 # Do PCA
 #-------
@@ -889,7 +889,7 @@ XX
 
 See Figure \@ref(fig:impplots)).
 
-```{r impplots, fig.cap = "Variable importance summaries over 30 resamples from random forest classification models. (A) Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 2$ demonstrates the most first rankings for variable importance. (B) Mean variable importance $\pm$ 1SD is plotted for each principal component used as predictors in the models.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impplots, fig.cap = "Variable importance summaries over 30 resamples from random forest classification models. (A) Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 2$ demonstrates the highest number of first rankings for variable importance. (B) Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models.", echo = FALSE, warning = FALSE, message = FALSE}
 # Wrangle variable importance
 
 get_imps <- function(thelist, x){
@@ -926,8 +926,6 @@ imp_ranks <- importances %>%
                  strip.background = element_blank()) +
   facet_wrap(~pc)
 
-print(imp_ranks)
-
 # Generate distributions of importance
 
 imp_dists <- importances %>%
@@ -948,8 +946,6 @@ imp_dists <- importances %>%
                  legend.position = "bottom",
                  plot.title = element_text(face = "bold"),
                  strip.background = element_blank())
-
-print(imp_dists)
 
 importance_plots <- ggpubr::ggarrange(imp_ranks, imp_dists, nrow = 2, ncol = 1, common.legend = TRUE, legend = "bottom")
 print(importance_plots)
