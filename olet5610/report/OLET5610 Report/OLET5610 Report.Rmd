@@ -26,6 +26,10 @@ XX
 
 XX
 
+## Hypotheses
+
+XX
+
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Load packages
 
