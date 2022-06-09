@@ -1,0 +1,19 @@
+---
+title: OLET5610 Report
+authors:
+  - name: Trent Henderson
+    email: then6675@uni.sydney.edu.au
+bibliography: references.bib
+biblio-style: unsrt
+output: 
+  rticles::arxiv_article:
+    keep_tex: true
+---
+
+# Method
+
+XX
+
+# Results
+
+X
