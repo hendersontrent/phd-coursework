@@ -15,11 +15,87 @@ output:
 XX
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
-# Pull the dataset
+# Load packages
 
-#
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(theft)
+library(foreign)
+
+#-------- Pull the dataset ---------
+
+temp <- tempfile()
+download.file("https://www.timeseriesclassification.com/Downloads/Earthquakes.zip", temp, mode = "wb")
+
+# Clean up data
+
+#' Function to load and process files into a single tidy dataframe
+#' @param tmp tempfile to operate on
+#' @return an object of class dataframe
+#' @author Trent Henderson
+#' 
+
+tidy_arff_files <- function(tmp){
+  
+  #-----------------------------
+  # Grab the train and test data
+  #-----------------------------
+  
+  train <- foreign::read.arff(unz(tmp, paste0("Earthquakes_TRAIN.arff"))) %>%
+    mutate(id = row_number()) %>%
+    mutate(set_split = "Train")
+  
+  themax <- max(train$id) # To add in test set to avoid duplicate IDs
+  
+  test <- foreign::read.arff(unz(tmp, paste0("Earthquakes_TEST.arff"))) %>%
+    mutate(id = row_number() + themax) %>% # Adjust relative to train set to stop double-ups
+    mutate(set_split = "Test")
+  
+  #----------------------------
+  # Wrangle data to long format
+  #----------------------------
+  
+  # Train
+  
+  thecolstr <- colnames(train)
+  keepcolstr <- thecolstr[!thecolstr %in% c("target", "id", "set_split")]
+  
+  train <- train %>%
+    pivot_longer(cols = all_of(keepcolstr), names_to = "timepoint", values_to = "values") %>%
+    mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+  
+  # Test
+  
+  thecolste <- colnames(test)
+  keepcolste <- thecolste[!thecolste %in% c("target", "id", "set_split")]
+  
+  test <- test %>%
+    pivot_longer(cols = all_of(keepcolste), names_to = "timepoint", values_to = "values") %>%
+    mutate(timepoint = as.numeric(gsub(".*?([0-9]+).*", "\\1", timepoint)))
+  
+  #------
+  # Merge
+  #------
+  
+  outs <- bind_rows(train, test)
+  return(outs)
+}
+
+tmp <- tidy_arff_files(tmp = temp)
+
+#-------- Calculate features ---------
+
+# Fix Python environment to where the Python libraries are installed on my machine
+
+init_theft("~/opt/anaconda3/bin/python")
 
 # Extract time-series features
+
+outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint", 
+                           values_var = "values", group_var = "target", 
+                           feature_set = c("catch22", "feasts", "tsfeatures", "tsfresh", "TSFEL", "Kats"), 
+                           catch24 = TRUE, tsfresh_cleanup = FALSE, seed = 123)
 ```
 
 # Results
