@@ -14,6 +14,18 @@ output:
 
 XX
 
+## Participants
+
+XX
+
+## Materials
+
+XX
+
+## Procedure
+
+XX
+
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Load packages
 
@@ -22,6 +34,8 @@ library(tidyr)
 library(ggplot2)
 library(theft)
 library(foreign)
+library(factoextra)
+library(ggpubr)
 
 #-------- Pull the dataset ---------
 
@@ -96,6 +110,10 @@ outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint",
                            values_var = "values", group_var = "target", 
                            feature_set = c("catch22", "tsfresh", "TSFEL", "Kats"), 
                            catch24 = TRUE, tsfresh_cleanup = FALSE, seed = 123)
+
+# Get feature matrix size to highlight dimensionality
+
+#print(paste0(length(unique(outs$id)), " x ", length(unique(outs$names))))
 ```
 
 # Results
@@ -103,6 +121,119 @@ outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint",
 XX
 
 ## Dimensionality reduction
+
+XX
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+#-------
+# Do PCA
+#-------
+
+# Widen model matrix and fit PCA
+
+mywhere <- function(fn) {
+  predicate <- rlang::as_function(fn)
+  
+  function(x, ...) {
+    out <- predicate(x, ...)
+    if (!rlang::is_bool(out)) {
+      rlang::abort("`where()` must be used with functions that return `TRUE` or `FALSE`.")
+    }
+    out
+  }
+}
+
+fits <- outs %>%
+  dplyr::select(id, names, values) %>%
+  tidyr::pivot_wider(id_cols = "id", names_from = "names", values_from = "values") %>%
+  tibble::column_to_rownames(var = "id") %>%
+  dplyr::select_if(~sum(!is.na(.)) > 0) %>% # Remove features that are just NA before dropping rows
+  tidyr::drop_na() %>%
+  dplyr::select(mywhere(~dplyr::n_distinct(.) > 1)) # Keep columns that aren't a constant
+
+# Get feature matrix size to highlight dimensionality
+
+print(paste0(nrow(fits), " x ", ncol(fits)))
+
+# Fit PCA
+
+fits <- fits %>%
+  stats::prcomp(scale = TRUE)
+
+#------------------------
+# Assess # of PCs to keep
+#------------------------
+
+# Filter to just PCs that contribute just over 80% of the variance
+
+eigs <- as.data.frame(get_eig(fits)) %>%
+  tibble::rownames_to_column(var = "dimension") %>%
+  mutate(rank = dense_rank(cumulative.variance.percent),
+         flag = ifelse(cumulative.variance.percent > 80, TRUE, FALSE)) %>%
+  group_by(flag) %>%
+  mutate(ranker = dense_rank(cumulative.variance.percent)) %>%
+  ungroup() %>%
+  mutate(ranker = ifelse(flag == FALSE, 1, ranker)) %>%
+  filter(ranker == 1) %>%
+  dplyr::select(-c(rank, flag, ranker)) %>%
+  mutate(dimension = gsub("Dim.", "\\1", dimension),
+         dimension = paste0("PC ", dimension))
+
+# Draw % of variance explained plot
+
+p <- eigs %>%
+  ggplot(aes(x = reorder(dimension, -variance.percent), y = variance.percent)) +
+  geom_bar(stat = "identity", fill = "#1B9E77") +
+  geom_line(group = 1, size = 1) +
+  geom_point(size = 2) +
+  labs(title = "(A) Percentage of variance explained by retained principal component",
+       x = "Principal component",
+       y = "Variance explained (%)") +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(limits = c(0, 35),
+                     breaks = seq(from = 0, to = 40, by = 5),
+                     labels = function(x)paste(x, "%")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+
+# Draw cumulative variance plot
+
+p1 <- eigs %>%
+  ggplot(aes(x = reorder(dimension, cumulative.variance.percent), y = cumulative.variance.percent)) +
+  geom_bar(stat = "identity", fill = "#D95F02") +
+  geom_line(group = 1, size = 1) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 80, lty = "dashed", colour = "black", size = 1) +
+  labs(title = "(B) Cumulative variance explained by retained principal components",
+       x = "Principal component",
+       y = "Cumulative variance explained (%)") +
+  scale_y_continuous(limits = c(0, 100),
+                     breaks = seq(from = 0, to = 100, by = 20),
+                     labels = function(x)paste(x, "%")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+
+# Draw eigenvalue plot
+
+p2 <- eigs %>%
+  ggplot(aes(x = reorder(dimension, -eigenvalue), y = eigenvalue)) +
+  geom_bar(stat = "identity", fill = "#7570B3") +
+  geom_hline(yintercept = 1, lty = "dashed", colour = "black", size = 1) +
+  labs(title = "(C) Eigenvalues of retained principal components",
+       x = "Principal component",
+       y = "Eigenvalue") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+
+# Combine plots
+
+eigenplots <- ggpubr::ggarrange(p, p1, p2, nrow = 3, ncol = 1, common.legend = TRUE, legend = "bottom")
+print(eigenplots)
+```
 
 XX
 
