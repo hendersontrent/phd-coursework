@@ -94,7 +94,7 @@ init_theft("~/opt/anaconda3/bin/python")
 
 outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint", 
                            values_var = "values", group_var = "target", 
-                           feature_set = c("catch22", "feasts", "tsfeatures", "tsfresh", "TSFEL", "Kats"), 
+                           feature_set = c("catch22", "tsfresh", "TSFEL", "Kats"), 
                            catch24 = TRUE, tsfresh_cleanup = FALSE, seed = 123)
 ```
 
