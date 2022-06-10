@@ -71,7 +71,7 @@ tidy_arff_file <- function(problem){
   return(outs)
 }
 
-tmp <- tidy_arff_file(problem = "Chinatown")
+tmp <- tidy_arff_file(problem = "Wafer")
 save(tmp, file = "olet5610/report/OLET5610 Report/tmp.Rda")
 
 #-------- Calculate features ---------
@@ -84,7 +84,7 @@ init_theft("~/opt/anaconda3/bin/python")
 
 outs <- calculate_features(tmp, id_var = "id", time_var = "timepoint", 
                            values_var = "values", group_var = "target", 
-                           feature_set = c("catch22", "tsfresh", "TSFEL", "Kats"), 
+                           feature_set = c("catch22", "Kats"), 
                            catch24 = TRUE, tsfresh_cleanup = FALSE, seed = 123)
 
 save(outs, file = "olet5610/report/OLET5610 Report/outs.Rda")
