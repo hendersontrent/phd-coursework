@@ -317,8 +317,6 @@ XX
 
 ## Time-series classification
 
-XX
-
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 #--------------- Helper functions ----------------
 
@@ -910,17 +908,27 @@ results <- fit_multi_feature_classifier_tt(X,
                                            num_resamples = 30)
 ```
 
-XX
+The time series $\times$ principal component matrix (7164 $\times$ 8) was passed as input into a random forest classifier using the **caret** package in R [@caret] over 30 resamples, where the first sample was the pre-designated train-test split from the Time Series Classification Repository. Mean balanced classification accuracy across the resamples was $99.08\% (SD=0.19\%)$ and is compared to previous benchmarks [@bagnallGreatTimeSeries2017] in Table \@ref(tab:comptable). The benchmark algorithms include collective of transformation-based ensembles (COTE), shaepelet transform (ST), bag of SFA symbols (BOSS), elastic ensemble (EE), dynamic time warping (DTW), time series forest (TSF), time series bag of features (TSBF), learned pattern (LPS), and move-split-merge (MSM). The current approach, while marginally outperformed by the other algorithms, demonstrates classification performance that can be considered to be on-par with complex, more black-box models despite only using eight principal components as an input to a random forest classifier.
 
-```{r, echo = FALSE, warning = FALSE, message = FALSE}
+```{r comptable, echo = FALSE, warning = FALSE, message = FALSE}
+comp_table <- data.frame(Algorithm = c("Current approach", "COTE", "ST", "BOSS", 
+                                       "EE", "DTW", "TSF", "TSBF", "LPS", "MSM"),
+                         mean_acc = c(round(mean(results$accuracy), digits = 3), 
+                                             0.999, 1.000, 0.999, 
+                                             0.997, 0.996, 0.997, 0.996, 0.995, 0.996)) %>%
+  mutate(mean_acc = mean_acc * 100) %>%
+  arrange(-mean_acc) %>%
+  mutate(mean_acc = paste0(mean_acc, "%")) %>%
+  rename(`Mean Accuracy` = mean_acc)
 
+knitr::kable(comp_table, caption = "Comparison of mean classification accuracy results on the Wafer dataset between the current approach and existing benchmarks. Performance differences are minimal between all approaches, with each algorithm achieving $\\>99\\%$ accuracy..")
 ```
 
 XX
 
 See Figure \@ref(fig:impranks). See Figure \@ref(fig:impdists).
 
-```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 4$ is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$).", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 4$ (comprised of mostly symbolic features, such as those associated with entropy of small-set probabilities, flat spots, and proportion of magnitudes that exceed a threshold over the standard deviation of the time series) is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Wrangle variable importance
 
 get_imps <- function(thelist, x){
@@ -958,7 +966,7 @@ imp_ranks <- importances %>%
 print(imp_ranks)
 ```
 
-```{r impdists, fig.cap = "Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models. $PC 2$ demonstrates the highest mean variable importance values, but with a large variance.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impdists, fig.cap = "Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models. $PC 4$ demonstrates the highest mean variable importance values by a factor of 5.5 over the next highest component ($PC 6$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Generate distributions of importance
 
 imp_dists <- importances %>%
