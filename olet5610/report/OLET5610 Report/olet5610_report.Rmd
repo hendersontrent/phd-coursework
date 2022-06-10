@@ -924,11 +924,9 @@ comp_table <- data.frame(Algorithm = c("Current approach", "COTE", "ST", "BOSS",
 knitr::kable(comp_table, caption = "Comparison of mean classification accuracy results on the Wafer dataset between the current approach and existing benchmarks. Performance differences are minimal between all approaches, with each algorithm achieving $\\>99\\%$ accuracy..")
 ```
 
-XX
+To understand the performance of the approach in the current work, we examine the machinery of the random forest models. Understanding relative variable importance can shed a deeper light into random forest models to aid interpretability. Variable importance ranks for each variable (principal components) across the 30 resamples are plotted in Figure \@ref(fig:impranks). $PC 4$ (comprised of mostly symbolic features, such as those associated with entropy of small-set probabilities, flat spots, and proportion of magnitudes that exceed a threshold over the standard deviation) is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$). The performance of $PC 4$ is further demonstrated in Figure \@ref(fig:impdists) which plots the mean $\pm1SD$ of variable importance values across the 30 resamples. On average, $PC 4$ exhibits variable importance of a factor of 5.5 higher than any other variable.
 
-See Figure \@ref(fig:impranks). See Figure \@ref(fig:impdists).
-
-```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 4$ (comprised of mostly symbolic features, such as those associated with entropy of small-set probabilities, flat spots, and proportion of magnitudes that exceed a threshold over the standard deviation of the time series) is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$).", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 4$ is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Wrangle variable importance
 
 get_imps <- function(thelist, x){
