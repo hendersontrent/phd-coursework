@@ -12,15 +12,15 @@ output:
 
 # Method
 
-Time-series classification algorithms are typically benchmarked using the Time Series Classification Repository, which contains 128 univariate (i.e., values sampled uniformly in time) time-series classification datasets/problems and 30 multivariate (i.e., for any time $t$, $\mathbf{y}_{t} = (y_{1t},\ldots, y_{nt})$ describes $n$ realisations at time $t$) datasets [@UEA_UCR_Repo]. Here, we focus on the univariate setting. Many algorithms developed across the sciences have been evaluated across the standardised univariate datasets provided in the repository, with black-box algorithms typically outperforming competitors [@bagnallGreatTimeSeries2017]. Given the growing need for algorithmic transparency in the sciences and industry, the present research aims to explore the feasibility of a new approach using one of the 128 datasets as a test case. Specifically, this work aims to determine if using informative summary statistics (known as "features"), can be used to construct high performing classification procedures that rival or outperform existing approaches [@fulcherHighlyComparativeTimeseries2013, @fulcherFeaturebasedTimeseriesAnalysis2017, fulcherFeatureBasedTimeSeriesAnalysis2018]. Examples of such features include properties of the time-series distribution of values, autocorrelation structure, entropy, model-fit statistics, nonlinear time-series analysis, stationarity, and many others [@fulcherHighlyComparativeFeaturebased2014]. At its core, feature-based time-series analysis reduces an time series $\times$ time matrix to a time series $\times$ feature matrix, which can then be used for statistical learning (such as classification), using the interpretative values of time-series features as inputs.
+Time-series classification algorithms are typically benchmarked using the Time Series Classification Repository, which contains 128 univariate (i.e., values sampled uniformly in time) time-series classification datasets/problems and 30 multivariate (i.e., for any time $t$, $\mathbf{y}_{t} = (y_{1t},\ldots, y_{nt})$ describes $n$ realisations at time $t$) datasets [@UEA_UCR_Repo]. Here, we focus on the univariate setting. Many algorithms developed across the sciences have been evaluated across the standardised univariate datasets provided in the repository, with black-box algorithms typically outperforming competitors [@bagnallGreatTimeSeries2017]. Given the growing need for algorithmic transparency in the sciences and industry, the present research aims to explore the feasibility of a new approach using one of the 128 datasets as a test case. Specifically, this work aims to determine if using informative summary statistics (known as "features"), can be used to construct high performing classification procedures that rival or outperform existing approaches [@fulcherHighlyComparativeTimeseries2013; @fulcherFeaturebasedTimeseriesAnalysis2017; fulcherFeatureBasedTimeSeriesAnalysis2018]. Examples of such features include properties of the time-series distribution of values, autocorrelation structure, entropy, model-fit statistics, nonlinear time-series analysis, stationarity, and many others [@fulcherHighlyComparativeFeaturebased2014]. At its core, feature-based time-series analysis reduces an time series $\times$ time matrix to a time series $\times$ feature matrix, which can then be used for statistical learning (such as classification), using the interpretative values of time-series features as inputs.
 
 ## Dataset
 
-The "Wafer" dataset in the Time Series Classification Repository contains data relating to the fabrication of semi-conductor microelectronics. The dataset comprises a collection of inline process control measurements that were recorded from a range of sensors during the manufacturing and processing of silicon wafers for semiconductor fabrication. Each time series in the Wafer dataset represents the measurements of one sensor during the processing of one wafer by one tool. Labels for two classes are provided in the data: **Normal** and **Abnormal**^[https://www.timeseriesclassification.com/description.php?Dataset=Wafer]. The goal of this problem is to predict class membership from the time-series values. The dataset contains a pre-designated train-test split, with 1000 samples in the train set (each of length $T = 152$), and 6164 samples in the test set (each of length $T = 152$).
+The "Wafer" dataset in the Time Series Classification Repository contains data relating to the fabrication of semi-conductor microelectronics. The dataset comprises a collection of inline process control measurements that were recorded from a range of sensors during the manufacturing and processing of silicon wafers for semiconductor fabrication. Each time series in the Wafer dataset represents the measurements of one sensor during the processing of one wafer by one tool. Labels for two classes are provided in the data: *Normal* and *Abnormal*^[https://www.timeseriesclassification.com/description.php?Dataset=Wafer]. The goal of this problem is to predict class membership from the time-series values. The dataset contains a pre-designated train-test split, with 1000 samples in the train set (each of length $T = 152$), and 6164 samples in the test set (each of length $T = 152$).
 
 ## Algorithmic Approach
 
-The approach in this work contains three stages: (i) extraction of time-series features for each unique time series; (ii) dimensionality reduction to obtain a reduced set of informative vectors; (iii) classification using the dimensionality reduction results as inputs into a random forest classifier. Features from two open-source feature sets (**catch22** [@lubbaCatch22CAnonicalTimeseries2019, @Rcatch22] and **Kats** [@Kats]) will be extracted using the R package "theft" [@theft]. Given the $T = 24$ length of each time series, **catch22** will extract 24 features (as mean and standard deviation are added to the standard 22 features) and **Kats** will extract 40 features. This will produce a resulting time series $\times$ feature matrix of size 7164 $\times$ 64. Given the existence within-set redundancy (i.e., high absolute correlations between features in a set) observed particularly for **Kats** relative to **catch22** in previous work, dimensionality reduction through principal components analysis (PCA) will then be applied to substantially reduce the input matrix size for the classification algorithm into a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. A threshold of 80$\%$ cumulative variance explained will be used to determine the principal components to retain. Following the procedure of previous work [@ruizGreatMultivariateTime2021], the methodology will then train and evaluate the accuracy of the classifier over 30 resamples of train-test splits, where each is seeded for reproducibility and the first is always the pre-designated train-test split in the data as it comes from the Time Series Classification Repository. This will enable scientific inference of algorithmic performance with uncertainty and facilitate a direct comparison with the performance of existing methods.
+The approach in this work contains three stages: (i) extraction of time-series features for each unique time series; (ii) dimensionality reduction to obtain a reduced set of informative vectors; (iii) classification using the dimensionality reduction results as inputs into a random forest classifier. Features from two open-source feature sets (**catch22** [@lubbaCatch22CAnonicalTimeseries2019; @Rcatch22] and **Kats** [@Kats]) will be extracted using the R package "theft" [@theft]. Given the $T = 24$ length of each time series, **catch22** will extract 24 features (as mean and standard deviation are added to the standard 22 features) and **Kats** will extract 40 features. This will produce a resulting time series $\times$ feature matrix of size 7164 $\times$ 64. Given the existence within-set redundancy (i.e., high absolute correlations between features in a set) observed particularly for **Kats** relative to **catch22** in previous work, dimensionality reduction through principal components analysis (PCA) will then be applied to substantially reduce the input matrix size for the classification algorithm into a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. A threshold of 80$\%$ cumulative variance explained will be used to determine the principal components to retain. Following the procedure of previous work [@ruizGreatMultivariateTime2021], the methodology will then train and evaluate the accuracy of the classifier over 30 resamples of train-test splits, where each is seeded for reproducibility and the first is always the pre-designated train-test split in the data as it comes from the Time Series Classification Repository. This will enable scientific inference of algorithmic performance with uncertainty and facilitate a direct comparison with the performance of existing methods.
 
 Given the existence of the Time Series Classification Repository [@UEA_UCR_Repo] which holds the Wafer dataset (whose sole purpose is to facilitate benchmarking of time-series classification algorithms), it is expected that meaningful class separation will be possible. The present research takes a novel approach of chaining time-series feature extraction into dimensionality reduction techniques into a classification algorithm --- an approach that has seen almost no research attention to-date. As such, a primary goal of this work is to understand the performance of this approach relative to current benchmarks. 
 
@@ -49,7 +49,7 @@ load("outs.Rda")
 
 # Results
 
-Prior to substantative analysis, exploratory data analysis was performed. A sample of three time series from each class (**Normal** and **Abnormal**) is displayed in Figure \@ref(fig:tsplots). To the eye, some small, but noticeable differences in temporal dynamics and shape are visible between the classes, which suggests that classification based on temporal properties (i.e, "features") is a feasible approach.
+Prior to substantative analysis, exploratory data analysis was performed. A sample of three time series from each class (*Normal* and *Abnormal*) is displayed in Figure \@ref(fig:tsplots). To the eye, some small, but noticeable differences in temporal dynamics and shape are visible between the classes, which suggests that classification based on temporal properties (i.e, "features") is a feasible approach.
 
 ```{r tsplots, fig.cap = "Raw time-series plots of three randomly selected time series from each class ($Normal$ and $Abnormal$) in the Wafer dataset. Small differences in temporal dynamics are visible.", echo = FALSE, warning = FALSE, message = FALSE}
 # Plot some raw time series examples (three from each class)
@@ -75,6 +75,8 @@ tsplot <- tmp %>%
   dplyr::mutate(target = ifelse(.data$target == "1", "Normal", "Abnormal")) %>%
   dplyr::mutate(target = factor(.data$target, levels = c("Normal", "Abnormal")),
                 id = paste0("ID: ", id)) %>%
+  dplyr::mutate(id = factor(id, levels = c("ID: 1237", "ID: 1934", "ID: 4839",
+                                           "ID: 2738", "ID: 2791", "ID: 2471"))) %>%
   ggplot(aes(x = timepoint, y = values, colour = target)) +
   geom_line(size = 0.7) +
   labs(title = "Raw time series samples from both classes",
@@ -95,9 +97,9 @@ print(tsplot)
 
 ## Dimensionality reduction
 
-Time-series features were computed from two sets (**catch22** and **Kats**) on all time series, which produced a time series $\times$ feature matrix of size 7164 $\times$ 64. This matrix is large, which increases computation time for classification algorithms and increases complexity of model interpretation and evaluation. To reduce this complexity, a principal components analysis was performed. The dataset meets the assumptions of PCA, as multicollinearity between time-series features was a reason for conducting the analysis, and there are sufficient samples to adequately perform PCA as the $7164:64$ $sample:variables$ ratio exceeds the $20:1$ recommendation for PCA [@osborneSampleSizeSubject2019]. 
+Time-series features were computed from two sets (**catch22** and **Kats**) on all time series, which produced a time series $\times$ feature matrix of size 7164 $\times$ 64. This matrix is large, which increases computation time for classification algorithms and increases complexity of model interpretation and evaluation. To reduce this complexity, a principal components analysis was performed. The dataset meets the assumptions of PCA, as multicollinearity between time-series features was a reason for conducting the analysis, and there are sufficient samples to adequately perform PCA as the $7164:64$ $samples:variables$ ratio exceeds the $20:1$ recommendation for PCA [@osborneSampleSizeSubject2019]. 
 
-See Figure \@ref(fig:eigenplots).
+Figure \@ref(fig:eigenplots) plots a visual summary of the PCA. Panel **(A)** plots the percentage of variance explained for the top eight principal components (PC) which explain 80$\%$ of the variance. $PC 1$ explains $37.5\%$ of the variance, but there is a steep drop off following this component, with $PC 2$ explaining $15.6\%$ of the variance. Panel **(B)** plots cumulative variance explained for the eight retained PCs. The first four PCs explain two-thirds of the variance in the dataset. Panel **(C)** plots the eigenvalues of the eight PCs. All eight PCs exceed the $\lambda = 1$ threshold for the Kaiser criterion of PC retention [@Kaiser1960].
 
 ```{r eigenplots, fig.cap = "Summary of eight retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the eight plotted here (from the original 64). (C) Eigenvalues of the eight retained principal components are plotted in descending order. All retained components also exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
 #-------
@@ -213,11 +215,9 @@ eigenplots <- ggpubr::ggarrange(p, p1, p2, nrow = 3, ncol = 1, common.legend = T
 print(eigenplots)
 ```
 
-XX
+Loadings for each of the 64 time-series features (variables) on the eight PCs is presented in Figure \@ref(fig:loadplot). Patterns are evident across the PCs, such as the strong loading of time-series features associated with properties of the autocorrelation and partial autocorrelation function onto $PC 1$, and histogram-based statistics onto $PC 3$. This plot gives us interpretable and informative insight into the relative behaviour of the time-series features extracted from the Wafer dataset.
 
-See Figure \@ref(fig:loadplot).
-
-```{r loadplot, fig.cap = "Loadings of each variable onto the eight retained principal components. Patterns are evident across the principal components, such as the strong loading of time-series features associated with properties of the autocorrelation function onto Dimension 1 and histogram-based statistics onto Dimension 3.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r loadplot, fig.cap = "Loadings of each variable onto the eight retained principal components.", fig.width = 7, echo = FALSE, warning = FALSE, message = FALSE}
 contribs <- get_pca_var(fits)
 
 methods <- outs %>%
@@ -231,18 +231,19 @@ loadings_plot <- as.data.frame(contribs$contrib) %>%
   left_join(methods, by = c("names" = "names")) %>%
   dplyr::select(c(full_name, Dim.1:Dim.8)) %>%
   pivot_longer(cols = Dim.1:Dim.8, names_to = "names", values_to = "value") %>%
-  mutate(names = factor(names, levels = c("Dim.1", "Dim.2", "Dim.3", "Dim.4", "Dim.5", "Dim.6", "Dim.7", "Dim.8"))) %>%
+  mutate(names = gsub("Dim.", "PC ", names)) %>%
+  mutate(names = factor(names, levels = c("PC 1", "PC 2", "PC 3", "PC 4", "PC 5", "PC 6", "PC 7", "PC 8"))) %>%
   ggplot2::ggplot(ggplot2::aes(x = .data$names, y = .data$full_name, fill = .data$value))  +
   ggplot2::geom_tile() +
-  ggplot2::labs(title = "Loading of variables onto principal components",
+  ggplot2::labs(title = "Variable loadings onto principal components",
                 x = "Principal component",
                 y = "Variable",
                 fill = "Component loading") +
   viridis::scale_fill_viridis(option = "plasma") +
   ggplot2::theme_bw() + 
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 8),
+                 axis.text.y = ggplot2::element_text(size = 4),
                  axis.ticks.y = ggplot2::element_blank(),
-                 axis.text = element_text(size = 7),
                  legend.position = "bottom",
                  panel.grid.minor = element_blank(),
                  plot.title = element_text(face = "bold"))
@@ -250,9 +251,9 @@ loadings_plot <- as.data.frame(contribs$contrib) %>%
 print(loadings_plot)
 ```
 
-See Figure \@ref(fig:biplot).
+Prior to modelling, the PCA was distilled into an even lower dimensional space of just two dimensions to understand if class differences could be ascertained with just the two PCs which explain the most variance in the data (a collective $53.1\%$). This is displayed in Figure \@ref(fig:biplot)). There is considerable overlap between the $Normal$ and $Abnormal$ classes in the two-dimensional space, suggesting the additional six principal components are likely needed for accurate classification.
 
-```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains 37.5% of the variance in the Wafer dataset. The second principal component (positioned along the $y$-axis) explains 15.6% of the variance in the Wafer dataset. There is considerably overlap between the $Normal$ and $Abnormal$ classes, suggesting further principal components might be needed for accurate classification.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains $37.5\\%$ of the variance in the Wafer dataset. The second principal component (positioned along the $y$-axis) explains $15.6\\%$ of the variance in the Wafer dataset.", echo = FALSE, warning = FALSE, message = FALSE}
 # Get eigenvalues and summary stats for plot
 
 eigen_summary <- fits %>%
@@ -296,7 +297,7 @@ pca_plot <- fits %>%
   ggplot2::stat_ellipse(ggplot2::aes(x = .data$.fitted1, y = .data$.fitted2, fill = .data$group_id), geom = "polygon", alpha = 0.2) +
   ggplot2::guides(fill = "none") +
   ggplot2::scale_fill_brewer(palette = "Dark2") +
-  ggplot2::geom_point(size = 2, ggplot2::aes(colour = .data$group_id)) + 
+  ggplot2::geom_point(size = 1.25, ggplot2::aes(colour = .data$group_id)) + 
   ggplot2::labs(title = "Principal components analysis biplot",
                 x = paste0("PC 1"," (", eigen_pc1, ")"),
                 y = paste0("PC 2"," (", eigen_pc2, ")"),
@@ -311,8 +312,6 @@ pca_plot <- fits %>%
 
 print(pca_plot)
 ```
-
-XX
 
 ## Time-series classification
 
@@ -988,3 +987,4 @@ imp_dists <- importances %>%
 print(imp_dists)
 ```
 
+# References

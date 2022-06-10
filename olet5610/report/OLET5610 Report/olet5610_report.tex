@@ -84,14 +84,16 @@ approach using one of the 128 datasets as a test case. Specifically,
 this work aims to determine if using informative summary statistics
 (known as ``features''), can be used to construct high performing
 classification procedures that rival or outperform existing approaches
-Fulcher (2017). Examples of such features include properties of the
-time-series distribution of values, autocorrelation structure, entropy,
-model-fit statistics, nonlinear time-series analysis, stationarity, and
-many others (Fulcher and Jones 2014). At its core, feature-based
-time-series analysis reduces an time series \(\times\) time matrix to a
-time series \(\times\) feature matrix, which can then be used for
-statistical learning (such as classification), using the interpretative
-values of time-series features as inputs.
+{[}Fulcher, Little, and Jones (2013); Fulcher (2017);
+fulcherFeatureBasedTimeSeriesAnalysis2018{]}. Examples of such features
+include properties of the time-series distribution of values,
+autocorrelation structure, entropy, model-fit statistics, nonlinear
+time-series analysis, stationarity, and many others (Fulcher and Jones
+2014). At its core, feature-based time-series analysis reduces an time
+series \(\times\) time matrix to a time series \(\times\) feature
+matrix, which can then be used for statistical learning (such as
+classification), using the interpretative values of time-series features
+as inputs.
 
 \hypertarget{dataset}{%
 \subsection{Dataset}\label{dataset}}
@@ -103,8 +105,8 @@ control measurements that were recorded from a range of sensors during
 the manufacturing and processing of silicon wafers for semiconductor
 fabrication. Each time series in the Wafer dataset represents the
 measurements of one sensor during the processing of one wafer by one
-tool. Labels for two classes are provided in the data: \textbf{Normal}
-and \textbf{Abnormal}\footnote{\url{https://www.timeseriesclassification.com/description.php?Dataset=Wafer}}.
+tool. Labels for two classes are provided in the data: \emph{Normal} and
+\emph{Abnormal}\footnote{\url{https://www.timeseriesclassification.com/description.php?Dataset=Wafer}}.
 The goal of this problem is to predict class membership from the
 time-series values. The dataset contains a pre-designated train-test
 split, with 1000 samples in the train set (each of length \(T = 152\)),
@@ -118,14 +120,14 @@ time-series features for each unique time series; (ii) dimensionality
 reduction to obtain a reduced set of informative vectors; (iii)
 classification using the dimensionality reduction results as inputs into
 a random forest classifier. Features from two open-source feature sets
-(\textbf{catch22} Henderson (2022a) and \textbf{Kats} (Facebook
-Infrastructure Data Science 2021)) will be extracted using the R package
-``theft'' (Henderson 2022b). Given the \(T = 24\) length of each time
-series, \textbf{catch22} will extract 24 features (as mean and standard
-deviation are added to the standard 22 features) and \textbf{Kats} will
-extract 40 features. This will produce a resulting time series
-\(\times\) feature matrix of size 7164 \(\times\) 64. Given the
-existence within-set redundancy (i.e., high absolute correlations
+(\textbf{catch22} (Lubba et al. 2019; Henderson 2022a) and \textbf{Kats}
+(Facebook Infrastructure Data Science 2021)) will be extracted using the
+R package ``theft'' (Henderson 2022b). Given the \(T = 24\) length of
+each time series, \textbf{catch22} will extract 24 features (as mean and
+standard deviation are added to the standard 22 features) and
+\textbf{Kats} will extract 40 features. This will produce a resulting
+time series \(\times\) feature matrix of size 7164 \(\times\) 64. Given
+the existence within-set redundancy (i.e., high absolute correlations
 between features in a set) observed particularly for \textbf{Kats}
 relative to \textbf{catch22} in previous work, dimensionality reduction
 through principal components analysis (PCA) will then be applied to
@@ -169,12 +171,12 @@ feature matrix.
 \section{Results}\label{results}}
 
 Prior to substantative analysis, exploratory data analysis was
-performed. A sample of three time series from each class
-(\textbf{Normal} and \textbf{Abnormal}) is displayed in Figure
-@ref(fig:tsplots). To the eye, some small, but noticeable differences in
-temporal dynamics and shape are visible between the classes, which
-suggests that classification based on temporal properties (i.e,
-``features'') is a feasible approach.
+performed. A sample of three time series from each class (\emph{Normal}
+and \emph{Abnormal}) is displayed in Figure @ref(fig:tsplots). To the
+eye, some small, but noticeable differences in temporal dynamics and
+shape are visible between the classes, which suggests that
+classification based on temporal properties (i.e, ``features'') is a
+feasible approach.
 
 \begin{figure}
 \centering
@@ -196,10 +198,19 @@ reduce this complexity, a principal components analysis was performed.
 The dataset meets the assumptions of PCA, as multicollinearity between
 time-series features was a reason for conducting the analysis, and there
 are sufficient samples to adequately perform PCA as the \(7164:64\)
-\(sample:variables\) ratio exceeds the \(20:1\) recommendation for PCA
+\(samples:variables\) ratio exceeds the \(20:1\) recommendation for PCA
 (Osborne and Costello 2019).
 
-See Figure @ref(fig:eigenplots).
+Figure @ref(fig:eigenplots) plots a visual summary of the PCA. Panel
+\textbf{(A)} plots the percentage of variance explained for the top
+eight principal components (PC) which explain 80\(\%\) of the variance.
+\(PC 1\) explains \(37.5\%\) of the variance, but there is a steep drop
+off following this component, with \(PC 2\) explaining \(15.6\%\) of the
+variance. Panel \textbf{(B)} plots cumulative variance explained for the
+eight retained PCs. The first four PCs explain two-thirds of the
+variance in the dataset. Panel \textbf{(C)} plots the eigenvalues of the
+eight PCs. All eight PCs exceed the \(\lambda = 1\) threshold for the
+Kaiser criterion of PC retention (Kaiser 1960).
 
 \begin{figure}
 \centering
@@ -215,35 +226,40 @@ are plotted in descending order. All retained components also exceed the
 \(\lambda = 1\) cutoff for the Kaiser criterion.}
 \end{figure}
 
-XX
-
-See Figure @ref(fig:loadplot).
+Loadings for each of the 64 time-series features (variables) on the
+eight PCs is presented in Figure @ref(fig:loadplot). Patterns are
+evident across the PCs, such as the strong loading of time-series
+features associated with properties of the autocorrelation and partial
+autocorrelation function onto \(PC 1\), and histogram-based statistics
+onto \(PC 3\). This plot gives us interpretable and informative insight
+into the relative behaviour of the time-series features extracted from
+the Wafer dataset.
 
 \begin{figure}
 \centering
 \includegraphics{olet5610_report_files/figure-latex/loadplot-1.pdf}
 \caption{Loadings of each variable onto the eight retained principal
-components. Patterns are evident across the principal components, such
-as the strong loading of time-series features associated with properties
-of the autocorrelation function onto Dimension 1 and histogram-based
-statistics onto Dimension 3.}
+components.}
 \end{figure}
 
-See Figure @ref(fig:biplot).
+Prior to modelling, the PCA was distilled into an even lower dimensional
+space of just two dimensions to understand if class differences could be
+ascertained with just the two PCs which explain the most variance in the
+data (a collective \(53.1\%\)). This is displayed in Figure
+@ref(fig:biplot)). There is considerable overlap between the \(Normal\)
+and \(Abnormal\) classes in the two-dimensional space, suggesting the
+additional six principal components are likely needed for accurate
+classification.
 
 \begin{figure}
 \centering
 \includegraphics{olet5610_report_files/figure-latex/biplot-1.pdf}
 \caption{Principal components analysis biplot. The first principal
-component (positioned along the \(x\)-axis) explains 37.5\% of the
+component (positioned along the \(x\)-axis) explains \(37.5\%\) of the
 variance in the Wafer dataset. The second principal component
-(positioned along the \(y\)-axis) explains 15.6\% of the variance in the
-Wafer dataset. There is considerably overlap between the \(Normal\) and
-\(Abnormal\) classes, suggesting further principal components might be
-needed for accurate classification.}
+(positioned along the \(y\)-axis) explains \(15.6\%\) of the variance in
+the Wafer dataset.}
 \end{figure}
-
-XX
 
 \hypertarget{time-series-classification}{%
 \subsection{Time-series
@@ -330,6 +346,10 @@ demonstrates the highest mean variable importance values by a factor of
 5.5 over the next highest component (\(PC 6\)).}
 \end{figure}
 
+\hypertarget{references}{%
+\section*{References}\label{references}}
+\addcontentsline{toc}{section}{References}
+
 \hypertarget{refs}{}
 \begin{CSLReferences}{1}{0}
 \leavevmode\hypertarget{ref-UEA_UCR_Repo}{}%
@@ -378,6 +398,11 @@ Henderson, Trent, and Ben D. Fulcher. 2021. {``An {Empirical Evaluation}
 of {Time-Series Feature Sets}.''} In \emph{2021 {International
 Conference} on {Data Mining Workshops} ({ICDMW})}, 1032--38.
 \url{https://doi.org/10.1109/ICDMW53433.2021.00134}.
+
+\leavevmode\hypertarget{ref-Kaiser1960}{}%
+Kaiser, Henry F. 1960. {``The Application of Electronic Computers to
+Factor Analysis.''} \emph{Educational and Psychological Measurement} 20
+(1): 141--51. \url{https://doi.org/10.1177/001316446002000116}.
 
 \leavevmode\hypertarget{ref-caret}{}%
 Kuhn, Max. 2020. \emph{Caret: Classification and Regression Training}.
