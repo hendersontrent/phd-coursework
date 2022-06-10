@@ -28,10 +28,6 @@ Given the existence of the Time Series Classification Repository [@UEA_UCR_Repo]
 
 Given the high within-set redundancy (i.e., high absolute correlations between features in a set) observed for particularly the **tsfresh** and **TSFEL** feature sets in previous work, it is hypothesised that dimensionality reduction techniques will substantially reduce the input matrix size for the classification algorithm from the original time series $\times$ feature matrix to a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. Further, it is also hypothesised that using the time series $\times$ principal component matrix as input to a classification algorithm (i.e., random forest classifier) will not result in a substantial reduction in classification performance compared to using the time series $\times$ feature matrix.
 
-## Time-series Feature Sets
-
-Numerous free and open-source feature
-
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Load packages
 
@@ -58,6 +54,51 @@ load("outs.Rda")
 # Results
 
 XX
+
+See Figure \@ref(fig:tsplots).
+
+```{r tsplots, fig.cap = "Raw time-series plots of two randomly selected time series from each class ("Weekend" and "Weekday"). Small differences in temporal dynamics are visible.", echo = FALSE, warning = FALSE, message = FALSE}
+# Plot some raw time series examples (two from each class)
+
+set.seed(123)
+
+weekend_ids <- tmp %>%
+  filter(target == "1") %>%
+  dplyr::select(id) %>%
+  distinct() %>%
+  pull(id) %>%
+  sample(size = 2)
+
+weekday_ids <- tmp %>%
+  filter(target == "2") %>%
+  dplyr::select(id) %>%
+  distinct() %>%
+  pull(id) %>%
+  sample(size = 2)
+
+tsplot <- tmp %>%
+  filter(id %in% append(weekend_ids, weekday_ids)) %>%
+  dplyr::mutate(target = ifelse(.data$target == "1", "Weekend", "Weekday")) %>%
+  dplyr::mutate(target = factor(.data$target, levels = c("Weekend", "Weekday")),
+                id = paste0("ID: ", id)) %>%
+  ggplot(aes(x = timepoint, y = values, colour = target)) +
+  geom_line(size = 1.15) +
+  geom_point(size = 2) +
+  labs(title = "Raw time series samples from both classes",
+       x = "Time",
+       y = "Value",
+       colour = NULL) +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold")) +
+  facet_wrap(~id)
+
+print(tsplot)
+```
 
 ## Dimensionality reduction
 
