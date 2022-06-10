@@ -12,23 +12,19 @@ output:
 
 # Method
 
-XX
+Time-series classification algorithms are typically benchmarked using the Time Series Classification Repository, which contains 128 univariate (i.e., values sampled uniformly in time) time-series classification datasets/problems and 30 multivariate (i.e., for any time $t$, $\mathbf{y}_{t} = (y_{1t},\ldots, y_{nt})$ describes $n$ realisations at time $t$) datasets [@UEA_UCR_Repo]. Here, we focus on the univariate setting. Many algorithms developed across the sciences have been evaluated across the standardised univariate datasets provided in the repository, with black-box algorithms typically outperforming competitors [@bagnallGreatTimeSeries2017]. Given the growing need for algorithmic transparency in the sciences and industry, the present research aims to explore the feasibility of a new approach using one of the 128 datasets as a test case. Specifically, this work aims to determine if using informative summary statistics (known as "features"), can be used to construct high performing classification procedures that rival or outperform existing approaches [@fulcherHighlyComparativeTimeseries2013; @fulcherFeaturebasedTimeseriesAnalysis2017; fulcherFeatureBasedTimeSeriesAnalysis2018]. Examples of such features include properties of the time-series distribution of values, autocorrelation structure, entropy, model-fit statistics, nonlinear time-series analysis, stationarity, and many others [@fulcherHighlyComparativeFeaturebased2014]. At its core, feature-based time-series analysis reduces an time series $\times$ time matrix to a time series $\times$ feature matrix, which can then be used for statistical learning (such as classification), using the interpretative values of time-series features as inputs.
 
-## Participants
+## Dataset
 
-XX
+The "Wafer" dataset in the Time Series Classification Repository contains data relating to the fabrication of semi-conductor microelectronics. The dataset comprises a collection of inline process control measurements that were recorded from a range of sensors during the manufacturing and processing of silicon wafers for semiconductor fabrication. Each time series in the Wafer dataset represents the measurements of one sensor during the processing of one wafer by one tool. Labels for two classes are provided in the data: *Normal* and *Abnormal*^[https://www.timeseriesclassification.com/description.php?Dataset=Wafer]. The goal of this problem is to predict class membership from the time-series values. The dataset contains a pre-designated train-test split, with 1000 samples in the train set (each of length $T = 152$), and 6164 samples in the test set (each of length $T = 152$).
 
-## Materials
+## Algorithmic Approach
 
-XX
+The approach in this work contains three stages: (i) extraction of time-series features for each unique time series; (ii) dimensionality reduction to obtain a reduced set of informative vectors; (iii) classification using the dimensionality reduction results as inputs into a random forest classifier. Features from two open-source feature sets (**catch22** [@lubbaCatch22CAnonicalTimeseries2019; @Rcatch22] and **Kats** [@Kats]) will be extracted using the R package "theft" [@theft]. Given the $T = 24$ length of each time series, **catch22** will extract 24 features (as mean and standard deviation are added to the standard 22 features) and **Kats** will extract 40 features. This will produce a resulting time series $\times$ feature matrix of size 7164 $\times$ 64. Given the existence within-set redundancy (i.e., high absolute correlations between features in a set) observed particularly for **Kats** relative to **catch22** in previous work, dimensionality reduction through principal components analysis (PCA) will then be applied to substantially reduce the input matrix size for the classification algorithm into a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. A threshold of 80$\%$ cumulative variance explained will be used to determine the principal components to retain. Following the procedure of previous work [@ruizGreatMultivariateTime2021], the methodology will then train and evaluate the accuracy of the classifier over 30 resamples of train-test splits, where each is seeded for reproducibility and the first is always the pre-designated train-test split in the data as it comes from the Time Series Classification Repository. This will enable scientific inference of algorithmic performance with uncertainty and facilitate a direct comparison with the performance of existing methods.
 
-## Procedure
+Given the existence of the Time Series Classification Repository [@UEA_UCR_Repo] which holds the Wafer dataset (whose sole purpose is to facilitate benchmarking of time-series classification algorithms), it is expected that meaningful class separation will be possible. The present research takes a novel approach of chaining time-series feature extraction into dimensionality reduction techniques into a classification algorithm --- an approach that has seen almost no research attention to-date. As such, a primary goal of this work is to understand the performance of this approach relative to current benchmarks. 
 
-XX
-
-## Hypotheses
-
-XX
+Given the high within-set redundancy (i.e., high absolute correlations between features in a set) observed in previous work, it is hypothesised that dimensionality reduction techniques will substantially reduce the input matrix size for the classification algorithm from the original time series $\times$ feature matrix to a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. Further, it is also hypothesised that using the time series $\times$ principal component matrix as input to a classification algorithm (i.e., random forest classifier) will not result in a substantial reduction in classification performance compared to using the time series $\times$ feature matrix.
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Load packages
@@ -36,34 +32,76 @@ XX
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(tibble)
 library(foreign)
 library(factoextra)
 library(ggpubr)
 library(broom)
 library(janitor)
 library(caret)
+library(viridis)
 
-# Load the dataset
+# Load the dataset (pre-run in olet5610/report/OLET5610 Report/calculate-features.R to avoid Python/Rmarkdown issues)
 
 load("tmp.Rda")
 load("outs.Rda")
-
-# Get feature matrix size to highlight dimensionality
-
-#print(paste0(length(unique(outs$id)), " x ", length(unique(outs$names))))
 ```
 
 # Results
 
-XX
+Prior to substantative analysis, exploratory data analysis was performed. A sample of three time series from each class (*Normal* and *Abnormal*) is displayed in Figure \@ref(fig:tsplots). To the eye, some small, but noticeable differences in temporal dynamics and shape are visible between the classes, which suggests that classification based on temporal properties (i.e, "features") is a feasible approach.
+
+```{r tsplots, fig.cap = "Raw time-series plots of three randomly selected time series from each class ($Normal$ and $Abnormal$) in the Wafer dataset. Small differences in temporal dynamics are visible.", echo = FALSE, warning = FALSE, message = FALSE}
+# Plot some raw time series examples (three from each class)
+
+set.seed(123)
+
+ids_1 <- tmp %>%
+  filter(target == "1") %>%
+  dplyr::select(id) %>%
+  distinct() %>%
+  pull(id) %>%
+  sample(size = 3)
+
+ids_2 <- tmp %>%
+  filter(target == "-1") %>%
+  dplyr::select(id) %>%
+  distinct() %>%
+  pull(id) %>%
+  sample(size = 3)
+
+tsplot <- tmp %>%
+  filter(id %in% append(ids_1, ids_2)) %>%
+  dplyr::mutate(target = ifelse(.data$target == "1", "Normal", "Abnormal")) %>%
+  dplyr::mutate(target = factor(.data$target, levels = c("Normal", "Abnormal")),
+                id = paste0("ID: ", id)) %>%
+  dplyr::mutate(id = factor(id, levels = c("ID: 1237", "ID: 1934", "ID: 4839",
+                                           "ID: 2738", "ID: 2791", "ID: 2471"))) %>%
+  ggplot(aes(x = timepoint, y = values, colour = target)) +
+  geom_line(size = 0.7) +
+  labs(title = "Raw time series samples from both classes",
+       x = "Time",
+       y = "Value",
+       colour = NULL) +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold")) +
+  facet_wrap(~id)
+
+print(tsplot)
+```
 
 ## Dimensionality reduction
 
-XX
+Time-series features were computed from two sets (**catch22** and **Kats**) on all time series, which produced a time series $\times$ feature matrix of size 7164 $\times$ 64. This matrix is large, which increases computation time for classification algorithms and increases complexity of model interpretation and evaluation. To reduce this complexity, a principal components analysis was performed. The dataset meets the assumptions of PCA, as multicollinearity between time-series features was a reason for conducting the analysis, and there are sufficient samples to adequately perform PCA as the $7164:64$ $samples:variables$ ratio exceeds the $20:1$ recommendation for PCA [@osborneSampleSizeSubject2019]. 
 
-See Figure \@ref(fig:eigenplots).
+Figure \@ref(fig:eigenplots) plots a visual summary of the PCA. Panel **(A)** plots the percentage of variance explained for the top eight principal components (PC) which explain 80$\%$ of the variance. $PC 1$ explains $37.5\%$ of the variance, but there is a steep drop off following this component, with $PC 2$ explaining $15.6\%$ of the variance. Panel **(B)** plots cumulative variance explained for the eight retained PCs. The first four PCs explain two-thirds of the variance in the dataset. Panel **(C)** plots the eigenvalues of the eight PCs. All eight PCs exceed the $\lambda = 1$ threshold for the Kaiser criterion of PC retention [@Kaiser1960].
 
-```{r eigenplots, fig.cap = "Summary of nineteen retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the nineteen plotted here (from the original 313). (C) Eigenvalues of the nineteen retained principal components are plotted in descending order. All retained components exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
+```{r eigenplots, fig.cap = "Summary of eight retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the eight plotted here (from the original 64). (C) Eigenvalues of the eight retained principal components are plotted in descending order. All retained components also exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
 #-------
 # Do PCA
 #-------
@@ -130,7 +168,7 @@ p <- eigs %>%
        y = "Variance explained (%)") +
   geom_line() +
   geom_point() +
-  scale_y_continuous(limits = c(0, 35),
+  scale_y_continuous(limits = c(0, 40),
                      breaks = seq(from = 0, to = 40, by = 5),
                      labels = function(x)paste(x, "%")) +
   theme_bw() +
@@ -145,7 +183,7 @@ p1 <- eigs %>%
   geom_bar(stat = "identity", fill = "#D95F02", alpha = 0.9) +
   geom_line(group = 1, size = 1) +
   geom_point(size = 2) +
-  geom_hline(yintercept = 80, lty = "dashed", colour = "black", size = 1) +
+  geom_hline(yintercept = 80, lty = "dashed", colour = "black", size = 0.8) +
   labs(title = "(B) Cumulative variance explained by principal components",
        x = "Principal component",
        y = "Cumulative variance explained (%)") +
@@ -162,10 +200,10 @@ p1 <- eigs %>%
 p2 <- eigs %>%
   ggplot(aes(x = reorder(dimension, -eigenvalue), y = eigenvalue)) +
   geom_bar(stat = "identity", fill = "#7570B3", alpha = 0.9) +
-  geom_hline(yintercept = 1, lty = "dashed", colour = "black", size = 1) +
+  geom_hline(yintercept = 1, lty = "dashed", colour = "black", size = 0.8) +
   labs(title = "(C) Eigenvalues of retained principal components",
        x = "Principal component",
-       y = "Eigenvalue") +
+       y = "Eigenvalue\n") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(face = "bold"),
@@ -177,11 +215,45 @@ eigenplots <- ggpubr::ggarrange(p, p1, p2, nrow = 3, ncol = 1, common.legend = T
 print(eigenplots)
 ```
 
-XX
+Loadings for each of the 64 time-series features (variables) on the eight PCs is presented in Figure \@ref(fig:loadplot). Patterns are evident across the PCs, such as the strong loading of time-series features associated with properties of the autocorrelation and partial autocorrelation function onto $PC 1$, and histogram-based statistics onto $PC 3$. This plot gives us interpretable and informative insight into the relative behaviour of the time-series features extracted from the Wafer dataset.
 
-See Figure \@ref(fig:biplot).
+```{r loadplot, fig.cap = "Loadings of each variable onto the eight retained principal components.", fig.width = 7, echo = FALSE, warning = FALSE, message = FALSE}
+contribs <- get_pca_var(fits)
 
-```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains 30.5% of the variance in the Chinatown dataset. The second principal component (positioned along the $y$-axis) explains 17.1% of the variance in the Chinatown dataset. Despite some overlap, meaningful class separation is visible between the $Weekend$ and $Weekday$ classes.", echo = FALSE, warning = FALSE, message = FALSE}
+methods <- outs %>%
+  dplyr::select(c(method, names)) %>%
+  distinct() %>%
+  mutate(full_name = paste0(stringr::str_to_upper(method), "_", names))
+
+loadings_plot <- as.data.frame(contribs$contrib) %>%
+  dplyr::select(c(Dim.1:Dim.8)) %>%
+  tibble::rownames_to_column(var = "names") %>%
+  left_join(methods, by = c("names" = "names")) %>%
+  dplyr::select(c(full_name, Dim.1:Dim.8)) %>%
+  pivot_longer(cols = Dim.1:Dim.8, names_to = "names", values_to = "value") %>%
+  mutate(names = gsub("Dim.", "PC ", names)) %>%
+  mutate(names = factor(names, levels = c("PC 1", "PC 2", "PC 3", "PC 4", "PC 5", "PC 6", "PC 7", "PC 8"))) %>%
+  ggplot2::ggplot(ggplot2::aes(x = .data$names, y = .data$full_name, fill = .data$value))  +
+  ggplot2::geom_tile() +
+  ggplot2::labs(title = "Variable loadings onto principal components",
+                x = "Principal component",
+                y = "Variable",
+                fill = "Component loading") +
+  viridis::scale_fill_viridis(option = "plasma") +
+  ggplot2::theme_bw() + 
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 8),
+                 axis.text.y = ggplot2::element_text(size = 4),
+                 axis.ticks.y = ggplot2::element_blank(),
+                 legend.position = "bottom",
+                 panel.grid.minor = element_blank(),
+                 plot.title = element_text(face = "bold"))
+
+print(loadings_plot)
+```
+
+Prior to modelling, the PCA was distilled into an even lower dimensional space of just two dimensions to understand if class differences could be ascertained with just the two PCs which explain the most variance in the data (a collective $53.1\%$). This is displayed in Figure \@ref(fig:biplot)). There is considerable overlap between the $Normal$ and $Abnormal$ classes in the two-dimensional space, suggesting the additional six principal components are likely needed for accurate classification.
+
+```{r biplot, fig.cap = "Principal components analysis biplot. The first principal component (positioned along the $x$-axis) explains $37.5\\%$ of the variance in the Wafer dataset. The second principal component (positioned along the $y$-axis) explains $15.6\\%$ of the variance in the Wafer dataset.", echo = FALSE, warning = FALSE, message = FALSE}
 # Get eigenvalues and summary stats for plot
 
 eigen_summary <- fits %>%
@@ -208,8 +280,8 @@ groups <- outs %>%
   dplyr::ungroup() %>%
   dplyr::select(-c(.data$counter)) %>%
   dplyr::mutate(id = as.factor(.data$id)) %>%
-  dplyr::mutate(group_id = ifelse(.data$group_id == "1", "Weekend", "Weekday")) %>%
-  dplyr::mutate(group_id = factor(.data$group_id, levels = c("Weekend", "Weekday")))
+  dplyr::mutate(group_id = ifelse(.data$group_id == "1", "Normal", "Abnormal")) %>%
+  dplyr::mutate(group_id = factor(.data$group_id, levels = c("Normal", "Abnormal")))
 
 # Draw plot
 
@@ -225,7 +297,7 @@ pca_plot <- fits %>%
   ggplot2::stat_ellipse(ggplot2::aes(x = .data$.fitted1, y = .data$.fitted2, fill = .data$group_id), geom = "polygon", alpha = 0.2) +
   ggplot2::guides(fill = "none") +
   ggplot2::scale_fill_brewer(palette = "Dark2") +
-  ggplot2::geom_point(size = 2, ggplot2::aes(colour = .data$group_id)) + 
+  ggplot2::geom_point(size = 1.25, ggplot2::aes(colour = .data$group_id)) + 
   ggplot2::labs(title = "Principal components analysis biplot",
                 x = paste0("PC 1"," (", eigen_pc1, ")"),
                 y = paste0("PC 2"," (", eigen_pc2, ")"),
@@ -241,11 +313,7 @@ pca_plot <- fits %>%
 print(pca_plot)
 ```
 
-XX
-
 ## Time-series classification
-
-XX
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 #--------------- Helper functions ----------------
@@ -813,12 +881,12 @@ tt_labels <- tmp %>%
 
 X <- fits %>%
   broom::augment(fit_mat) %>%
-  dplyr::select(c(".rownames", .fittedPC1:.fittedPC19)) %>%
+  dplyr::select(c(".rownames", .fittedPC1:.fittedPC8)) %>%
   rename(id = .rownames) %>%
   left_join(groups, by = c("id" = "id")) %>%
   left_join(tt_labels, by = c("id" = "id")) %>%
-  clean_names() %>%
-  pivot_longer(cols = fitted_pc1:fitted_pc19, names_to = "names", values_to = "values") %>%
+  janitor::clean_names() %>%
+  pivot_longer(cols = fitted_pc1:fitted_pc8, names_to = "names", values_to = "values") %>%
   mutate(method = "PCA")
 
 # Set up storage for variable importances
@@ -838,17 +906,25 @@ results <- fit_multi_feature_classifier_tt(X,
                                            num_resamples = 30)
 ```
 
-XX
+The time series $\times$ principal component matrix (7164 $\times$ 8) was passed as input into a random forest classifier using the **caret** package in R [@caret] over 30 resamples, where the first sample was the pre-designated train-test split from the Time Series Classification Repository. Mean balanced classification accuracy across the resamples was $99.08\% (SD=0.19\%)$ and is compared to previous benchmarks [@bagnallGreatTimeSeries2017] in Table \@ref(tab:comptable). The benchmark algorithms include collective of transformation-based ensembles (COTE), shaepelet transform (ST), bag of SFA symbols (BOSS), elastic ensemble (EE), dynamic time warping (DTW), time series forest (TSF), time series bag of features (TSBF), learned pattern (LPS), and move-split-merge (MSM). The current approach, while marginally outperformed by the other algorithms, demonstrates classification performance that can be considered to be on-par with complex, more black-box models despite only using eight principal components as an input to a random forest classifier.
 
-```{r, echo = FALSE, warning = FALSE, message = FALSE}
+```{r comptable, echo = FALSE, warning = FALSE, message = FALSE}
+comp_table <- data.frame(Algorithm = c("Current approach", "COTE", "ST", "BOSS", 
+                                       "EE", "DTW", "TSF", "TSBF", "LPS", "MSM"),
+                         mean_acc = c(round(mean(results$accuracy), digits = 3), 
+                                             0.999, 1.000, 0.999, 
+                                             0.997, 0.996, 0.997, 0.996, 0.995, 0.996)) %>%
+  mutate(mean_acc = mean_acc * 100) %>%
+  arrange(-mean_acc) %>%
+  mutate(mean_acc = paste0(mean_acc, "%")) %>%
+  rename(`Mean Accuracy` = mean_acc)
 
+knitr::kable(comp_table, caption = "Comparison of mean classification accuracy results on the Wafer dataset between the current approach and existing benchmarks. Performance differences are minimal between all approaches, with each algorithm achieving $\\>99\\%$ accuracy.", format = "latex")
 ```
 
-XX
+To understand the performance of the approach in the current work, we examine the machinery of the random forest models. Understanding relative variable importance can shed a deeper light into random forest models to aid interpretability. Variable importance ranks for each variable (principal components) across the 30 resamples are plotted in Figure \@ref(fig:impranks). $PC 4$ (comprised of mostly symbolic features, such as those associated with entropy of small-set probabilities, flat spots, and proportion of magnitudes that exceed a threshold over the standard deviation) is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$). The performance of $PC 4$ is further demonstrated in Figure \@ref(fig:impdists) which plots the mean $\pm1SD$ of variable importance values across the 30 resamples. On average, $PC 4$ exhibits variable importance of a factor of 5.5 higher than any other variable.
 
-See Figure \@ref(fig:impranks). See Figure \@ref(fig:impdists).
-
-```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 2$ demonstrates the highest number of first rankings, indicating that across the 30 resamples (different train-test splits), $PC 2$ is more often than not the most informative predictor of class ($Weekend$ versus $Weekday$).", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impranks, fig.cap = "Frequency of ranks over all resamples are plotted for each principal component used as a predictor in the models. $PC 4$ is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Wrangle variable importance
 
 get_imps <- function(thelist, x){
@@ -870,9 +946,7 @@ imp_ranks <- importances %>%
   summarise(counter = n()) %>%
   ungroup() %>%
   mutate(pc = factor(pc, levels = c("PC 1", "PC 2", "PC 3", "PC 4", "PC 5",
-                                    "PC 6", "PC 7", "PC 8", "PC 9", "PC 10",
-                                    "PC 11", "PC 12", "PC 13", "PC 14", "PC 15",
-                                    "PC 16", "PC 17", "PC 18", "PC 19"))) %>%
+                                    "PC 6", "PC 7", "PC 8"))) %>%
   ggplot(aes(x = ranker, y = counter)) +
   geom_bar(stat = 'identity', fill = "#1B9E77", alpha = 0.9) +
   labs(title = "Frequency of variable importance ranks over all resamples",
@@ -888,7 +962,7 @@ imp_ranks <- importances %>%
 print(imp_ranks)
 ```
 
-```{r impdists, fig.cap = "Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models. $PC 2$ demonstrates the highest mean variable importance values, but with a large variance.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r impdists, fig.cap = "Mean variable importance $\\pm$ 1SD is plotted for each principal component used as predictors in the models. $PC 4$ demonstrates the highest mean variable importance values by a factor of 5.5 over the next highest component ($PC 6$).", echo = FALSE, warning = FALSE, message = FALSE}
 # Generate distributions of importance
 
 imp_dists <- importances %>%
@@ -898,9 +972,9 @@ imp_dists <- importances %>%
             upper = mu + sd(importance, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(aes(x = reorder(pc, mu), y = mu)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#1B9E77", size = 1) +
-  geom_point(colour = "#1B9E77", size = 2) +
-  labs(title = "Distribution of variable importance values over all resamples",
+  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#1B9E77", size = 0.8) +
+  geom_point(colour = "#1B9E77", size = 1.5) +
+  labs(title = "Distribution of variable importance over all resamples",
        x = "Principal component",
        y = "Variable importance") +
   coord_flip() +
@@ -913,3 +987,4 @@ imp_dists <- importances %>%
 print(imp_dists)
 ```
 
+# References
