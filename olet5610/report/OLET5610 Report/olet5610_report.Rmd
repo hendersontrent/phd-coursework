@@ -22,8 +22,6 @@ The "Wafer" dataset in the Time Series Classification Repository contains data r
 
 The approach in this work contains three stages: (i) extraction of time-series features for each unique time series; (ii) dimensionality reduction to obtain a reduced set of informative vectors; (iii) classification using the dimensionality reduction results as inputs into a random forest classifier. Features from two open-source feature sets (**catch22** [@lubbaCatch22CAnonicalTimeseries2019, @Rcatch22] and **Kats** [@Kats]) will be extracted using the R package "theft" [@theft]. Given the $T = 24$ length of each time series, **catch22** will extract 24 features (as mean and standard deviation are added to the standard 22 features) and **Kats** will extract 40 features. This will produce a resulting time series $\times$ feature matrix of size 7164 $\times$ 64. Given the existence within-set redundancy (i.e., high absolute correlations between features in a set) observed particularly for **Kats** relative to **catch22** in previous work, dimensionality reduction through principal components analysis (PCA) will then be applied to substantially reduce the input matrix size for the classification algorithm into a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. A threshold of 80$\%$ cumulative variance explained will be used to determine the principal components to retain. Following the procedure of previous work [@ruizGreatMultivariateTime2021], the methodology will then train and evaluate the accuracy of the classifier over 30 resamples of train-test splits, where each is seeded for reproducibility and the first is always the pre-designated train-test split in the data as it comes from the Time Series Classification Repository. This will enable scientific inference of algorithmic performance with uncertainty and facilitate a direct comparison with the performance of existing methods.
 
-## Hypotheses
-
 Given the existence of the Time Series Classification Repository [@UEA_UCR_Repo] which holds the Wafer dataset (whose sole purpose is to facilitate benchmarking of time-series classification algorithms), it is expected that meaningful class separation will be possible. The present research takes a novel approach of chaining time-series feature extraction into dimensionality reduction techniques into a classification algorithm --- an approach that has seen almost no research attention to-date. As such, a primary goal of this work is to understand the performance of this approach relative to current benchmarks. 
 
 Given the high within-set redundancy (i.e., high absolute correlations between features in a set) observed in previous work, it is hypothesised that dimensionality reduction techniques will substantially reduce the input matrix size for the classification algorithm from the original time series $\times$ feature matrix to a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. Further, it is also hypothesised that using the time series $\times$ principal component matrix as input to a classification algorithm (i.e., random forest classifier) will not result in a substantial reduction in classification performance compared to using the time series $\times$ feature matrix.
@@ -53,7 +51,7 @@ load("outs.Rda")
 
 Prior to substantative analysis, exploratory data analysis was performed. A sample of three time series from each class (**Normal** and **Abnormal**) is displayed in Figure \@ref(fig:tsplots). To the eye, some small, but noticeable differences in temporal dynamics and shape are visible between the classes, which suggests that classification based on temporal properties (i.e, "features") is a feasible approach.
 
-```{r tsplots, fig.cap = "Raw time-series plots of three randomly selected time series from each class ("Normal" and "Abnormal") in the Wafer dataset. Small differences in temporal dynamics are visible.", echo = FALSE, warning = FALSE, message = FALSE}
+```{r tsplots, fig.cap = "Raw time-series plots of three randomly selected time series from each class ($Normal$ and $Abnormal$) in the Wafer dataset. Small differences in temporal dynamics are visible.", echo = FALSE, warning = FALSE, message = FALSE}
 # Plot some raw time series examples (three from each class)
 
 set.seed(123)
@@ -101,7 +99,7 @@ Time-series features were computed from two sets (**catch22** and **Kats**) on a
 
 See Figure \@ref(fig:eigenplots).
 
-```{r eigenplots, fig.cap = "Summary of eight retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the eight plotted here (from the original 313). (C) Eigenvalues of the eight retained principal components are plotted in descending order. All retained components also exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
+```{r eigenplots, fig.cap = "Summary of eight retained principal components. (A) Percentage of variance explained is plotted in descending order for each of the retained principal components. (B) Cumulative variance explained is plotted for each of the retained principal components. An 80% cumulative variance threshold was selected to determine the principal components to retain which returned the eight plotted here (from the original 64). (C) Eigenvalues of the eight retained principal components are plotted in descending order. All retained components also exceed the $\\lambda = 1$ cutoff for the Kaiser criterion.", echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 8}
 #-------
 # Do PCA
 #-------
@@ -120,7 +118,7 @@ mywhere <- function(fn) {
   }
 }
 
-fit_mat <- outs2 %>%
+fit_mat <- outs %>%
   dplyr::select(id, names, values) %>%
   tidyr::pivot_wider(id_cols = "id", names_from = "names", values_from = "values") %>%
   tibble::column_to_rownames(var = "id") %>%
@@ -244,6 +242,7 @@ loadings_plot <- as.data.frame(contribs$contrib) %>%
   ggplot2::theme_bw() + 
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                  axis.ticks.y = ggplot2::element_blank(),
+                 axis.text = element_text(size = 7),
                  legend.position = "bottom",
                  panel.grid.minor = element_blank(),
                  plot.title = element_text(face = "bold"))
@@ -921,7 +920,7 @@ comp_table <- data.frame(Algorithm = c("Current approach", "COTE", "ST", "BOSS",
   mutate(mean_acc = paste0(mean_acc, "%")) %>%
   rename(`Mean Accuracy` = mean_acc)
 
-knitr::kable(comp_table, caption = "Comparison of mean classification accuracy results on the Wafer dataset between the current approach and existing benchmarks. Performance differences are minimal between all approaches, with each algorithm achieving $\\>99\\%$ accuracy..")
+knitr::kable(comp_table, caption = "Comparison of mean classification accuracy results on the Wafer dataset between the current approach and existing benchmarks. Performance differences are minimal between all approaches, with each algorithm achieving $\\>99\\%$ accuracy.", format = "latex")
 ```
 
 To understand the performance of the approach in the current work, we examine the machinery of the random forest models. Understanding relative variable importance can shed a deeper light into random forest models to aid interpretability. Variable importance ranks for each variable (principal components) across the 30 resamples are plotted in Figure \@ref(fig:impranks). $PC 4$ (comprised of mostly symbolic features, such as those associated with entropy of small-set probabilities, flat spots, and proportion of magnitudes that exceed a threshold over the standard deviation) is the most important variable across all 30 resamples for predicting class ($Normal$ versus $Abnormal$). The performance of $PC 4$ is further demonstrated in Figure \@ref(fig:impdists) which plots the mean $\pm1SD$ of variable importance values across the 30 resamples. On average, $PC 4$ exhibits variable importance of a factor of 5.5 higher than any other variable.
@@ -974,8 +973,8 @@ imp_dists <- importances %>%
             upper = mu + sd(importance, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(aes(x = reorder(pc, mu), y = mu)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#1B9E77", size = 1) +
-  geom_point(colour = "#1B9E77", size = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), colour = "#1B9E77", size = 0.8) +
+  geom_point(colour = "#1B9E77", size = 1.5) +
   labs(title = "Distribution of variable importance over all resamples",
        x = "Principal component",
        y = "Variable importance") +
