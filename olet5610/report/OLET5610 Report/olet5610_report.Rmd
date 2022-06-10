@@ -12,23 +12,25 @@ output:
 
 # Method
 
-XX
+Time-series classification algorithms are typically benchmarked using the Time Series Classification Repository, which contains 128 univariate (i.e., values sampled uniformly in time) time-series classification datasets/problems and 30 multivariate (i.e., for any time $t$, $\mathbf{y}_{t} = (y_{1t},\ldots, y_{nt})$ describes $n$ realisations at time $t$) datasets [@UEA_UCR_Repo]. Here, we focus on the univariate setting. Many algorithms developed across the sciences have been evaluated across the standardised univariate datasets provided in the repository, with black-box algorithms typically outperforming competitors [@bagnallGreatTimeSeries2017]. Given the growing need for algorithmic transparency in the sciences and industry, the present research aims to explore the feasibility of a new approach using one of the 128 datasets as a test case. Specifically, this work aims to determine if using informative summary statistics (known as "features"), can be used to construct high performing classification procedures that rival or outperform existing approaches [@fulcherHighlyComparativeTimeseries2013, @fulcherFeaturebasedTimeseriesAnalysis2017, fulcherFeatureBasedTimeSeriesAnalysis2018]. Examples of such features include properties of the time-series distribution of values, autocorrelation structure, entropy, model-fit statistics, nonlinear time-series analysis, stationarity, and many others [@fulcherHighlyComparativeFeaturebased2014]. At its core, feature-based time-series analysis reduces an time series $\times$ time matrix to a time series $\times$ feature matrix, which can then be used for statistical learning (such as classification), using the interpretative values of time-series features as inputs.
 
-## Participants
+## Dataset
 
-XX
+The "Chinatown" dataset in the Time Series Classification Repository contains data collected by The City of Melbourne from its automated pedestrian counting system [@CityMelb]. The goal of this system is to better understand pedestrian activity within the city, an enable city planners and decision makers to understand various important questions, such as how people use different city locations at different time of the day. The reduced version of this dataset contained on the Time Series Classification Repository contains an extraction of 10 locations for the whole year of 2017, such that the data is a collection of pedestrian counts across 2017. Labels for two classes are provided in the data: **Weekend** and **Weekday**^[https://www.timeseriesclassification.com/description.php?Dataset=Chinatown]. The goal of this problem is to predict class membership from the time-series values. The dataset contains a pre-designated train-test split, with 20 samples in the train set (each of length $T = 24$), and 345 samples in the test set (each of length $T = 24$).
 
-## Materials
+## Algorithmic Approach
 
-XX
-
-## Procedure
-
-XX
+The approach in this work contains three stages: (i) extraction of time-series features for each unique time series; (ii) dimensionality reduction to obtain a reduced set of informative vectors; (iii) classification using the dimensionality reduction results as inputs into a random forest classifier. Features from four open-source feature sets (**catch22** [@lubbaCatch22CAnonicalTimeseries2019, @Rcatch22], **tsfresh** [@christTimeSeriesFeatuRe2018], **TSFEL** [@barandasTSFELTimeSeries2020], and **Kats** [@Kats]) will be extracted using the R package "theft" [@theft]. Given the $T = 24$ length of each time series, **catch22** will extract 24 features (as mean and standard deviation are added to the standard 22 features), **tsfresh** will extract 779 features, **TSFEL** will extract 147 features, and **Kats** will extract 40 features. This will produce a resulting time series $\times$ feature matrix of size 365 $\times$ 990. Given the high within-set redundancy (i.e., high absolute correlations between features in a set) observed for particularly the **tsfresh** and **TSFEL** feature sets in previous work, dimensionality reduction through principal components analysis (PCA) will then be applied to substantially reduce the input matrix size for the classification algorithm into a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. A threshold of 80$\%$ cumulative variance explained will be used to determine the principal components to retain. Following the procedure of previous work [@ruizGreatMultivariateTime2021], the methodology will then train and evaluate the accuracy of the classifier over 30 resamples of train-test splits, where each is seeded for reproducibility and the first is always the pre-designated train-test split in the data as it comes from the Time Series Classification Repository. This will enable scientific inference of algorithmic performance with uncertainty and facilitate a direct comparison with the performance of existing methods.
 
 ## Hypotheses
 
-XX
+Given the existence of the Time Series Classification Repository [@UEA_UCR_Repo] which holds the Chinatown dataset (whose sole purpose is to facilitate benchmarking of time-series classification algorithms), it is expected that meaningful class separation will be possible. The present research takes a novel approach of chaining time-series feature extraction into dimensionality reduction techniques into a classification algorithm --- an approach that has seen almost no research attention to-date. As such, a primary goal of this work is to understand the performance of this approach relative to current benchmarks. 
+
+Given the high within-set redundancy (i.e., high absolute correlations between features in a set) observed for particularly the **tsfresh** and **TSFEL** feature sets in previous work, it is hypothesised that dimensionality reduction techniques will substantially reduce the input matrix size for the classification algorithm from the original time series $\times$ feature matrix to a time series $\times$ principal component matrix [@hendersonEmpiricalEvaluationTimeSeries2021]. Further, it is also hypothesised that using the time series $\times$ principal component matrix as input to a classification algorithm (i.e., random forest classifier) will not result in a substantial reduction in classification performance compared to using the time series $\times$ feature matrix.
+
+## Time-series Feature Sets
+
+Numerous free and open-source feature
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # Load packages
