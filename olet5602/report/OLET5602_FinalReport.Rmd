@@ -15,7 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 load("Final_Project_ESC.RData")
 library(dplyr)
 library(tidyr)
-library()
+library(ggplot2)
+library(ggrepel)
+library(broom)
 ```
 
 # Background and purpose
@@ -30,8 +32,71 @@ XX
 
 ## Exploratory data analysis
 
-```{r, message = FALSE, warning = FALSE}
+XX use PCA
 
+### Transcriptome
+
+XX
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
+#' Function to calculate PCA and return useful outputs for an input matrix
+#' @param matrix the input data matrix
+#' @return an object of class \code{list}
+#' @author Trent Henderson
+#' 
+
+do_pca <- function(matrix){
+  
+  stopifnot(is.matrix(matrix))
+  
+  # Fit PCA on correlation matrix
+  
+  cors <- cor(matrix)
+  fits <- stats::prcomp(cors, scale = TRUE)
+  
+  # Retrieve eigenvalues and tidy up variance explained for first 2 PCs for plotting
+      
+  eigens <- fits %>%
+    tidy(matrix = "eigenvalues") %>%
+    filter(PC %in% c(1, 2)) %>% # Filter to just the 2 going in the plot
+    select(c(PC, percent)) %>%
+    mutate(percent = paste0("(", round(percent * 100, digits = 2), "%)")) # Make nice format
+  
+  # Draw plot
+        
+  p <- fits %>%
+    augment(cors) %>%
+    mutate(.rownames = as.factor(.rownames)) %>%
+    ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
+    geom_point(size = 3, ggplot2::aes(colour = .rownames)) +
+    geom_text_repel(aes(label = .rownames)) +
+    labs(x = paste0("PC 1", eigens$percent[1]),
+         y = paste0("PC 2", eigens$percent[2]),
+         caption = "Variance explained by each PC is shown in parentheses.") +
+    scale_fill_brewer(palette = "Dark2") +
+    theme_bw() +
+    theme(legend.position = "none")
+  
+  mylist <- list(fits, p)
+  names(mylist) <- c("fits", "p")
+  return(mylist)
+}
+
+# Run function
+
+transcriptome_pca <- do_pca(matrix = Transcriptome)
+print(transcriptome_pca$p)
+```
+
+### Proteome
+
+XX
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
+# Apply function defined earlier
+
+proteome_pca <- do_pca(matrix = Proteome)
+print(proteome_pca$p)
 ```
 
 ## Novel gene classification
