@@ -11,9 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Background and purpose
 
-XX. 
+Transcriptional regulation orchestrates gene activity through the regulation of the DNA to RNA conversion process. This form of regulation is crucial to all living organisms. It is organised by transcription factors, who, along with other factors, in concert drive mRNA expression for an organism. These processes have wide-reaching, important implications, as distinct transcriptional networks drive development, lineage specification, and cell fate decisions during early embryonic development (Theunissen and Jaenisch, 2017). Recent advances in -omics technologies have made it possible to profile genome-wide transcriptional and epigenetic events for investigating transcriptional networks. As a result, a key goal of modern computational -omics work is to identify the target genes of transcription factors that drive key transcriptional events over a course of time. This report seeks to extend this goal by constructing a classification pipeline which uses -omics information (transcriptomics, proteomics, and epigenomics) to predict whether a target gene belongs to two important transcription factors (or not): SOX2 and NANOG. SOX2 is a key transcription factor for maintaining pluripotency (a cell's ability to differentiate into other cell types) of undifferentiated embryonic stem cells. NANOG also helps embryonic stem cells maintain pluripotency, but does so through the suppression of cell determination factors.
 
-The following code excerpt loads the dataset and the relevant R packages:
+The following code excerpt loads the dataset and the relevant R packages to reproduce the work presented here (see end of the report for a full session information print out):
 
 ```{r, message = FALSE, warning = FALSE}
 # Read in data and load R packages
@@ -28,15 +28,11 @@ library(patchwork)
 library(broom)
 ```
 
-# Results
-
-XX
-
-## Exploratory data analysis
+# Exploratory data analysis
 
 XX use PCA
 
-### Transcriptome
+## Transcriptome
 
 XX
 
@@ -98,7 +94,7 @@ transcriptome_pca <- do_pca(matrix = Transcriptome)
 print(transcriptome_pca$p)
 ```
 
-### Proteome
+## Proteome
 
 XX. We can apply the function defined earlier for the transcriptome case, but with the proteome input data:
 
@@ -107,7 +103,7 @@ proteome_pca <- do_pca(matrix = Proteome)
 print(proteome_pca$p)
 ```
 
-### Epigenome
+## Epigenome
 
 XX. We can apply the function defined earlier for the transcriptome case, but with the epigenome input data for six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2):
 
@@ -122,7 +118,7 @@ patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
   patchwork::plot_annotation(caption = "Variance explained by each PC is shown in parentheses.")
 ```
 
-### Construct of combined dataset
+## Construction of combined dataset
 
 Prior work transformed both the transcriptome and proteome datasets to be in a comparable scale --- meaning they can be easily appended to form a combined dataset. We can do this:
 
@@ -177,7 +173,7 @@ X
 
 ```
 
-## Comparison to benchmark results
+### Comparison to benchmark results
 
 X
 
