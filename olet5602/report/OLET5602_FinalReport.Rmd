@@ -120,7 +120,7 @@ patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
 
 ## Construction of combined dataset
 
-Prior work transformed both the transcriptome and proteome datasets to be in a comparable scale --- meaning they can be easily appended to form a combined dataset. We can do this:
+Prior work transformed both the transcriptome and proteome datasets to be in a comparable scale --- meaning they can be easily appended to form a combined dataset. We can combine the two based on only the consistent genes across both datasets:
 
 ```{r, message = FALSE, warning = FALSE}
 # Create final dataset for modelling
@@ -136,7 +136,7 @@ X <- Proteome2 %>%
   inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
 ```
 
-With the combined dataset, we can explore even further multivariate structures, such as clustering of the variables:
+With the combined dataset, we can explore even further multivariate structures, such as clustering of the time point variables across both transcriptomic and proteomic structures:
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 8, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
 X_mat <- as.matrix(X[, 2:ncol(X)])
@@ -167,7 +167,23 @@ print(cluster_plot)
 
 ## Novel gene classification
 
-X
+Following exploratory data analysis, a predictive model for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) was constructed. This involved several pre-processing steps:
+
+1. XX
+2. XX
+3. XX
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+The model that was chosen is a generalised additive model(GAM; Wood, 2017 ^[Wood, S.N. (2017). Generalized Additive Models: An Introduction with R (2nd ed.). Chapman and Hall/CRC. https://doi.org/10.1201/9781315370279])---a generalisation of the standard generalised linear model. Specifically, a GAM can be written simply using the following form (assuming Gaussian error $\epsilon$):
+
+\begin{equation}
+y = \beta_{0} + f(x_{1}) + f(x_{2}) \dots + f(x_{n}) + \epsilon, \;\; \epsilon \sim \mathcal{N}(0, \sigma^{2}},
+\end{equation}
+
+where $y$ is some response variable, $\beta_{0}$ is the intercept term, $f(x_{1-n})$ are unknown *smooth* functions over each covariate (i.e., time point for each -omics data type), and $\epsilon$ is the error term. Importantly, the smooth terms are *splines*, each of which is composed of the summation of numerous local basis regression functions, often of a polynomial order, such as cubic ($x^{3}$). The number of basis functions is controlled through the specification of *knots*, where a higher number will produce a more "wiggly" spline (thus can overfit to the data easier), while a lower number will produce a smoother spline (which may not capture local variation as well). Since GAMs are an extension of GLMs, we can specify the correct likelihood function for the data on-hand---in our case, a binomial link function since we have a two-class classification problem. GAMs are implemented in R through the `mgcv`^[Wood, S.N. (2011) Fast stable restricted maximum likelihood and marginal likelihood estimation of semiparametric generalized linear models. Journal of the Royal Statistical Society (B) 73(1):3-36] package.
 
 ```{r, message = FALSE, warning = FALSE}
 
