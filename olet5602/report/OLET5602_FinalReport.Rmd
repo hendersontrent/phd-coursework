@@ -12,11 +12,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, message = FALSE, warning = FALSE}
 # Read in data and load R packages
 
-load("Final_Project_ESC.RData")
+load("Final_Project_ESC.RData", verbose = TRUE)
+library(tibble)
 library(dplyr)
-library(tidyr)
+library(purrr)
 library(ggplot2)
 library(ggrepel)
+library(patchwork)
 library(broom)
 ```
 
@@ -41,11 +43,12 @@ XX
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
 #' Function to calculate PCA and return useful outputs for an input matrix
 #' @param matrix the input data matrix
+#' @param subtitle string for the plot subtitle. Defaults to \code{NULL} for no subtitle
 #' @return an object of class \code{list}
 #' @author Trent Henderson
 #' 
 
-do_pca <- function(matrix){
+do_pca <- function(matrix, subtitle = NULL){
   
   stopifnot(is.matrix(matrix))
   
@@ -66,7 +69,8 @@ do_pca <- function(matrix){
         
   p <- fits %>%
     augment(cors) %>%
-    mutate(.rownames = as.factor(.rownames)) %>%
+    mutate(.rownames = as.factor(.rownames),
+           .rownames = gsub(".*_", "\\1", .rownames)) %>%
     ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
     geom_point(size = 3, ggplot2::aes(colour = .rownames)) +
     geom_text_repel(aes(label = .rownames)) +
@@ -76,6 +80,12 @@ do_pca <- function(matrix){
     scale_fill_brewer(palette = "Dark2") +
     theme_bw() +
     theme(legend.position = "none")
+  
+  if(!is.null(subtitle)){
+    p <- p +
+      labs(subtitle = subtitle,
+           caption = NULL)
+  }
   
   mylist <- list(fits, p)
   names(mylist) <- c("fits", "p")
@@ -90,16 +100,45 @@ print(transcriptome_pca$p)
 
 ### Proteome
 
-XX
+XX. We can apply the function defined earlier for the transcriptome case, but with the proteome input data:
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
-# Apply function defined earlier
-
 proteome_pca <- do_pca(matrix = Proteome)
 print(proteome_pca$p)
 ```
 
+### Epigenome
+
+XX. We can apply the function defined earlier for the transcriptome case, but with the epigenome input data for six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2):
+
+```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
+epigenome_list <- list(H3K27ac, H3K27me3, H3K4me1, H3K4me3, H3K9me2, PolII)
+epi_names <- c("H3K27ac", "H3K27me3", "H3K4me1", "H3K4me3", "H3K9me2", "PolII")
+names(epigenome_list) <- epi_names
+epigenomes <- purrr::map2(.x = epigenome_list, .y = epi_names, ~ do_pca(matrix = .x, subtitle = .y))
+plots <- list(epigenomes$H3K27ac$p, epigenomes$H3K27me3$p, epigenomes$H3K4me1$p, epigenomes$H3K4me3$p, epigenomes$H3K9me2$p, epigenomes$PolII$p)
+
+patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
+  patchwork::plot_annotation(caption = "Variance explained by each PC is shown in parentheses.")
+```
+
 ## Novel gene classification
+
+X
+
+```{r, message = FALSE, warning = FALSE}
+# Create final dataset for modelling
+
+Proteome2 <- as.data.frame(Proteome)
+colnames(Proteome2) <- paste0("p_", colnames(Proteome2))
+Proteome2 <- rownames_to_column(.data = Proteome2, var = "gene")
+Transcriptome2 <- as.data.frame(Transcriptome)
+colnames(Transcriptome2) <- paste0("t_", colnames(Transcriptome2))
+Transcriptome2 <- rownames_to_column(.data = Transcriptome2, var = "gene")
+
+X <- Proteome2 %>%
+  inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
+```
 
 X
 
