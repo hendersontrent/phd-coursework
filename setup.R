@@ -19,3 +19,6 @@ if(!dir.exists('olet5606/LiveLab')) dir.create('olet5606/LiveLab')
 
 if(!dir.exists('olet5610')) dir.create('olet5610')
 if(!dir.exists('olet5610/report')) dir.create('olet5610/report')
+
+if(!dir.exists('olet5602')) dir.create('olet5602')
+if(!dir.exists('olet5602/report')) dir.create('olet5602/report')
