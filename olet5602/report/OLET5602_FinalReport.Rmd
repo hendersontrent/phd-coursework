@@ -1,0 +1,57 @@
+---
+title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
+author: "Trent Henderson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Read in data and load R packages
+
+load("Final_Project_ESC.RData")
+library(dplyr)
+library(tidyr)
+library()
+```
+
+# Background and purpose
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+# Results
+
+XX
+
+## Exploratory data analysis
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+## Novel gene classification
+
+X
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+## Comparison to benchmark results
+
+X
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+# SessionInfo
+
+```{r}
+sessionInfo()
+```
