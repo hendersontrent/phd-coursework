@@ -34,7 +34,7 @@ XX use PCA
 
 ## Transcriptome
 
-XX
+The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. With such a large multivariate dataset, it is important to understand any relationships in the data, particularly in a lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot. We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
 #' Function to calculate PCA and return useful outputs for an input matrix
@@ -96,7 +96,7 @@ print(transcriptome_pca$p)
 
 ## Proteome
 
-XX. We can apply the function defined earlier for the transcriptome case, but with the proteome input data:
+X. Applying the function defined earlier for the transcriptome case, but with the proteome input data, we can again see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains a similarly large percentage of the variance in the correlation matrix data ($61.31\%$), while the second PC explains $26.44\%$, for a combined total of $87.75\%$ --- another strong result for just two PCs. This, again, suggests that the dimensionality of the proteome dataset could be reduced using PCs.
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
 proteome_pca <- do_pca(matrix = Proteome)
@@ -105,7 +105,7 @@ print(proteome_pca$p)
 
 ## Epigenome
 
-XX. We can apply the function defined earlier for the transcriptome case, but with the epigenome input data for six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2):
+The transcriptome and proteome data contained a single matrix each. However, for the epigenomics data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), whose values are in a different scale for each one. With this in mind, we can perform the same analysis but separately for each histone mark. Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
 epigenome_list <- list(H3K27ac, H3K27me3, H3K4me1, H3K4me3, H3K9me2, PolII)
@@ -138,7 +138,7 @@ X <- Proteome2 %>%
 
 With the combined dataset, we can explore even further multivariate structures, such as clustering of the variables:
 
-```{r, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
+```{r, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 8, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
 X_mat <- as.matrix(X[, 2:ncol(X)])
 row.order <- stats::hclust(stats::dist(X_mat, method = "euclidean"), method = "average")$order # Hierarchical cluster on rows
 col.order <- stats::hclust(stats::dist(t(X_mat), method = "euclidean"), method = "average")$order # Hierarchical cluster on columns
