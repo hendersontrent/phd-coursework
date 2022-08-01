@@ -9,6 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Background and purpose
+
+XX. 
+
+The following code excerpt loads the dataset and the relevant R packages:
+
 ```{r, message = FALSE, warning = FALSE}
 # Read in data and load R packages
 
@@ -20,12 +26,6 @@ library(ggplot2)
 library(ggrepel)
 library(patchwork)
 library(broom)
-```
-
-# Background and purpose
-
-```{r, message = FALSE, warning = FALSE}
-
 ```
 
 # Results
@@ -74,8 +74,8 @@ do_pca <- function(matrix, subtitle = NULL){
     ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
     geom_point(size = 3, ggplot2::aes(colour = .rownames)) +
     geom_text_repel(aes(label = .rownames)) +
-    labs(x = paste0("PC 1", eigens$percent[1]),
-         y = paste0("PC 2", eigens$percent[2]),
+    labs(x = paste0("PC 1 ", eigens$percent[1]),
+         y = paste0("PC 2 ", eigens$percent[2]),
          caption = "Variance explained by each PC is shown in parentheses.") +
     scale_fill_brewer(palette = "Dark2") +
     theme_bw() +
@@ -122,9 +122,9 @@ patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
   patchwork::plot_annotation(caption = "Variance explained by each PC is shown in parentheses.")
 ```
 
-## Novel gene classification
+### Construct of combined dataset
 
-X
+Prior work transformed both the transcriptome and proteome datasets to be in a comparable scale --- meaning they can be easily appended to form a combined dataset. We can do this:
 
 ```{r, message = FALSE, warning = FALSE}
 # Create final dataset for modelling
@@ -139,6 +139,37 @@ Transcriptome2 <- rownames_to_column(.data = Transcriptome2, var = "gene")
 X <- Proteome2 %>%
   inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
 ```
+
+With the combined dataset, we can explore even further multivariate structures, such as clustering of the variables:
+
+```{r, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
+X_mat <- as.matrix(X[, 2:ncol(X)])
+row.order <- stats::hclust(stats::dist(X_mat, method = "euclidean"), method = "average")$order # Hierarchical cluster on rows
+col.order <- stats::hclust(stats::dist(t(X_mat), method = "euclidean"), method = "average")$order # Hierarchical cluster on columns
+
+# Reorder by cluster outputs, turn into dataframe, and draw plot
+  
+cluster_plot <- reshape2::melt(as.matrix(X_mat[row.order, col.order])) %>% 
+  rename(id = .data$Var1,
+        names = .data$Var2) %>%
+  mutate(names = gsub("t", "transcriptome", names),
+         names = gsub("p", "proteome", names)) %>%
+  ggplot(aes(x = names, y = id, fill = value))  +
+  geom_tile() +
+  scale_fill_viridis_b() +
+  labs(x = "Time-course profile",
+       y = "Gene",
+       fill = "Value") +
+  theme_bw() + 
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(angle = 90),
+        panel.grid = element_blank())
+
+print(cluster_plot)
+```
+
+## Novel gene classification
 
 X
 
