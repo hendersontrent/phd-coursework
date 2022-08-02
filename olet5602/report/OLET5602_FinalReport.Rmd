@@ -21,11 +21,13 @@ The following code excerpt loads the dataset and the relevant R packages to repr
 load("Final_Project_ESC.RData", verbose = TRUE)
 library(tibble)
 library(dplyr)
+library(tidyr)
 library(purrr)
 library(ggplot2)
 library(ggrepel)
 library(patchwork)
 library(broom)
+library(factoextra)
 ```
 
 # Exploratory data analysis
@@ -101,6 +103,65 @@ X. Applying the function defined earlier for the transcriptome case, but with th
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
 proteome_pca <- do_pca(matrix = Proteome)
 print(proteome_pca$p)
+```
+
+Evidently, time courses across both transcriptomic and proteomic structures appear to be differentiated in a low dimensional space of the first two PCs. However, it remains unclear whether each PC is driven by one or more time courses. Examining the variable loadings for the PCA can reveal this information, which is plotted below. Here, we see for both transcriptome and proteome, that multiple variables (i.e., time courses) contribute meaningfully to each principal component --- especially the first two which are of primary interest to us. This means that if further analysis uses PCs as inputs instead of the raw time course data, any model would not simply be learning on time courses that loaded singularly onto each PC. However, we do see that very strong loadings exist for the 48hr time course onto the second-last PCs in both cases (PC 7 for transcriptome and PC 6 for proteome), which is interesting. Further, we see the earliest (0hr for transcriptome, 1hr for proteome) and latest (72hr for both datasets) time courses exhibit very strong loading onto the final PC in both cases --- which potentially highlights the heterogeneity of these two time points relative to the rest. 
+
+```{r, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 8, fig.cap = "Variable loadings onto principal components for transcriptome and proteome datasets."}
+#' Function to plot factor loadings for PCA
+#' @param pca the model output object from \code{prcomp}
+#' @param subtitle string specifying the subtitle of the plot
+#' @return object of class \code{ggplot}
+#' @author Trent Henderson
+#' 
+
+plot_loadings <- function(pca, subtitle){
+  
+  # Extract variable loadings
+  
+  contribs <- get_pca_var(pca)
+  loadings_plot <- as.data.frame(contribs$contrib)
+  n_vars <- ncol(loadings_plot)
+  
+  # Generate labels for plot programmatically
+  
+  fac_levs <- rep(NA, length.out = n_vars)
+  
+  for(i in 1:n_vars){
+    fac_levs[i] <- paste0("PC ", i)
+  }
+  
+  time_levs <- rownames(loadings_plot)
+  
+  # Draw plot
+  
+  loadings_plot <- loadings_plot %>%
+    rownames_to_column(var = "timepoint") %>%
+    pivot_longer(cols = 2:(n_vars + 1), names_to = "names", values_to = "value") %>%
+    mutate(names = gsub("Dim.", "PC ", names)) %>%
+    mutate(names = factor(names, levels = fac_levs),
+           timepoint = factor(timepoint, levels = time_levs)) %>%
+    ggplot(aes(x = names, y = timepoint, fill = value))  +
+    geom_tile() +
+    labs(subtitle = subtitle,
+         x = "Principal component",
+         y = "Variable",
+         fill = "Component loading") +
+    scale_fill_viridis_c(option = "plasma") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.ticks.y = element_blank(),
+          legend.position = "bottom",
+          panel.grid.minor = element_blank())
+  
+  return(loadings_plot)
+}
+
+# Use functions to draw plots
+
+transcriptome_load <- plot_loadings(pca = transcriptome_pca$fits, subtitle = "Transcriptome")
+proteome_load <- plot_loadings(pca = proteome_pca$fits, subtitle = "Proteome")
+patchwork::wrap_plots(transcriptome_load, proteome_load, ncol = 2, nrow = 1)
 ```
 
 ## Epigenome
