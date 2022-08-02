@@ -1,0 +1,274 @@
+---
+title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
+author: "Trent Henderson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background and purpose
+
+Transcriptional regulation orchestrates gene activity through the regulation of the DNA to RNA conversion process. This form of regulation is crucial to all living organisms. It is organised by transcription factors, who, along with other factors, in concert drive mRNA expression for an organism. These processes have wide-reaching, important implications, as distinct transcriptional networks drive development, lineage specification, and cell fate decisions during early embryonic development (Theunissen and Jaenisch, 2017). Recent advances in -omics technologies have made it possible to profile genome-wide transcriptional and epigenetic events for investigating transcriptional networks. As a result, a key goal of modern computational -omics work is to identify the target genes of transcription factors that drive key transcriptional events over a course of time. This report seeks to extend this goal by constructing a classification pipeline which uses -omics information (transcriptomics, proteomics, and epigenomics) to predict whether a target gene belongs to two important transcription factors (or not): SOX2 and NANOG. SOX2 is a key transcription factor for maintaining pluripotency (a cell's ability to differentiate into other cell types) of undifferentiated embryonic stem cells. NANOG also helps embryonic stem cells maintain pluripotency, but does so through the suppression of cell determination factors.
+
+The following code excerpt loads the dataset and the relevant R packages to reproduce the work presented here (see end of the report for a full session information print out):
+
+```{r, message = FALSE, warning = FALSE}
+# Read in data and load R packages
+
+load("Final_Project_ESC.RData", verbose = TRUE)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(ggrepel)
+library(patchwork)
+library(broom)
+library(factoextra)
+```
+
+# Exploratory data analysis
+
+XX use PCA
+
+## Transcriptome
+
+The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. With such a large multivariate dataset, it is important to understand any relationships in the data, particularly in a lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot. We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
+#' Function to calculate PCA and return useful outputs for an input matrix
+#' @param matrix the input data matrix
+#' @param subtitle string for the plot subtitle. Defaults to \code{NULL} for no subtitle
+#' @return an object of class \code{list}
+#' @author Trent Henderson
+#' 
+
+do_pca <- function(matrix, subtitle = NULL){
+  
+  stopifnot(is.matrix(matrix))
+  
+  # Fit PCA on correlation matrix
+  
+  cors <- cor(matrix)
+  fits <- stats::prcomp(cors, scale = TRUE)
+  
+  # Retrieve eigenvalues and tidy up variance explained for first 2 PCs for plotting
+      
+  eigens <- fits %>%
+    tidy(matrix = "eigenvalues") %>%
+    filter(PC %in% c(1, 2)) %>% # Filter to just the 2 going in the plot
+    select(c(PC, percent)) %>%
+    mutate(percent = paste0("(", round(percent * 100, digits = 2), "%)")) # Make nice format
+  
+  # Draw plot
+        
+  p <- fits %>%
+    augment(cors) %>%
+    mutate(.rownames = as.factor(.rownames),
+           .rownames = gsub(".*_", "\\1", .rownames)) %>%
+    ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
+    geom_point(size = 3, ggplot2::aes(colour = .rownames)) +
+    geom_text_repel(aes(label = .rownames)) +
+    labs(x = paste0("PC 1 ", eigens$percent[1]),
+         y = paste0("PC 2 ", eigens$percent[2]),
+         caption = "Variance explained by each PC is shown in parentheses.") +
+    scale_fill_brewer(palette = "Dark2") +
+    theme_bw() +
+    theme(legend.position = "none")
+  
+  if(!is.null(subtitle)){
+    p <- p +
+      labs(subtitle = subtitle,
+           caption = NULL)
+  }
+  
+  mylist <- list(fits, p)
+  names(mylist) <- c("fits", "p")
+  return(mylist)
+}
+
+# Run function
+
+transcriptome_pca <- do_pca(matrix = Transcriptome)
+print(transcriptome_pca$p)
+```
+
+## Proteome
+
+X. Applying the function defined earlier for the transcriptome case, but with the proteome input data, we can again see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains a similarly large percentage of the variance in the correlation matrix data ($61.31\%$), while the second PC explains $26.44\%$, for a combined total of $87.75\%$ --- another strong result for just two PCs. This, again, suggests that the dimensionality of the proteome dataset could be reduced using PCs.
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
+proteome_pca <- do_pca(matrix = Proteome)
+print(proteome_pca$p)
+```
+
+Evidently, time courses across both transcriptomic and proteomic structures appear to be differentiated in a low dimensional space of the first two PCs. However, it remains unclear whether each PC is driven by one or more time courses. Examining the variable loadings for the PCA can reveal this information, which is plotted below. Here, we see for both transcriptome and proteome, that multiple variables (i.e., time courses) contribute meaningfully to each principal component --- especially the first two which are of primary interest to us. This means that if further analysis uses PCs as inputs instead of the raw time course data, any model would not simply be learning on time courses that loaded singularly onto each PC. However, we do see that very strong loadings exist for the 48hr time course onto the second-last PCs in both cases (PC 7 for transcriptome and PC 6 for proteome), which is interesting. Further, we see the earliest (0hr for transcriptome, 1hr for proteome) and latest (72hr for both datasets) time courses exhibit very strong loading onto the final PC in both cases --- which potentially highlights the heterogeneity of these two time points relative to the rest. 
+
+```{r, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 8, fig.cap = "Variable loadings onto principal components for transcriptome and proteome datasets."}
+#' Function to plot factor loadings for PCA
+#' @param pca the model output object from \code{prcomp}
+#' @param subtitle string specifying the subtitle of the plot
+#' @return object of class \code{ggplot}
+#' @author Trent Henderson
+#' 
+
+plot_loadings <- function(pca, subtitle){
+  
+  # Extract variable loadings
+  
+  contribs <- get_pca_var(pca)
+  loadings_plot <- as.data.frame(contribs$contrib)
+  n_vars <- ncol(loadings_plot)
+  
+  # Generate labels for plot programmatically
+  
+  fac_levs <- rep(NA, length.out = n_vars)
+  
+  for(i in 1:n_vars){
+    fac_levs[i] <- paste0("PC ", i)
+  }
+  
+  time_levs <- rownames(loadings_plot)
+  
+  # Draw plot
+  
+  loadings_plot <- loadings_plot %>%
+    rownames_to_column(var = "timepoint") %>%
+    pivot_longer(cols = 2:(n_vars + 1), names_to = "names", values_to = "value") %>%
+    mutate(names = gsub("Dim.", "PC ", names)) %>%
+    mutate(names = factor(names, levels = fac_levs),
+           timepoint = factor(timepoint, levels = time_levs)) %>%
+    ggplot(aes(x = names, y = timepoint, fill = value))  +
+    geom_tile() +
+    labs(subtitle = subtitle,
+         x = "Principal component",
+         y = "Variable",
+         fill = "Component loading") +
+    scale_fill_viridis_c(option = "plasma") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.ticks.y = element_blank(),
+          legend.position = "bottom",
+          panel.grid.minor = element_blank())
+  
+  return(loadings_plot)
+}
+
+# Use functions to draw plots
+
+transcriptome_load <- plot_loadings(pca = transcriptome_pca$fits, subtitle = "Transcriptome")
+proteome_load <- plot_loadings(pca = proteome_pca$fits, subtitle = "Proteome")
+patchwork::wrap_plots(transcriptome_load, proteome_load, ncol = 2, nrow = 1)
+```
+
+## Epigenome
+
+The transcriptome and proteome data contained a single matrix each. However, for the epigenomics data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), whose values are in a different scale for each one. With this in mind, we can perform the same analysis but separately for each histone mark. Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
+
+```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
+epigenome_list <- list(H3K27ac, H3K27me3, H3K4me1, H3K4me3, H3K9me2, PolII)
+epi_names <- c("H3K27ac", "H3K27me3", "H3K4me1", "H3K4me3", "H3K9me2", "PolII")
+names(epigenome_list) <- epi_names
+epigenomes <- purrr::map2(.x = epigenome_list, .y = epi_names, ~ do_pca(matrix = .x, subtitle = .y))
+plots <- list(epigenomes$H3K27ac$p, epigenomes$H3K27me3$p, epigenomes$H3K4me1$p, epigenomes$H3K4me3$p, epigenomes$H3K9me2$p, epigenomes$PolII$p)
+
+patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
+  patchwork::plot_annotation(caption = "Variance explained by each PC is shown in parentheses.")
+```
+
+We can similarly explore the variable loadings for the PCA models for the epigenome data. In the matrix of plots below, we see that across the six histone marks, the first two PCs are typically characterised by loadings from multiple time course variables --- suggesting their suitability as inputs for modelling. However, we do also see that very strong loadings of a single time course onto a range of PCs are visible, such as for H3K4me1, where 24hr loads strongly onto PC 2, 0hr onto PC 4, 1hr onto PC 7, and 72 hr onto PC 8.
+
+```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Variable loadings onto principal components for epigenome datasets across six histone marks."}
+epigenome_pc_list <- list(epigenomes$H3K27ac$fits, epigenomes$H3K27me3$fits, epigenomes$H3K4me1$fits, 
+                          epigenomes$H3K4me3$fits, epigenomes$H3K9me2$fits, epigenomes$PolII$fits)
+
+names(epigenome_list) <- epi_names
+epigenome_loads <- purrr::map2(.x = epigenome_pc_list, .y = epi_names, ~ plot_loadings(pca = .x, subtitle = .y))
+patchwork::wrap_plots(epigenome_loads, ncol = 3, nrow = 2)
+```
+
+## Construction of combined dataset
+
+Prior work transformed both the transcriptome and proteome datasets to be in a comparable scale --- meaning they can be easily appended to form a combined dataset. We can combine the two based on only the consistent genes across both datasets:
+
+```{r, message = FALSE, warning = FALSE}
+Proteome2 <- as.data.frame(Proteome)
+colnames(Proteome2) <- paste0("p_", colnames(Proteome2))
+Proteome2 <- rownames_to_column(.data = Proteome2, var = "gene")
+Transcriptome2 <- as.data.frame(Transcriptome)
+colnames(Transcriptome2) <- paste0("t_", colnames(Transcriptome2))
+Transcriptome2 <- rownames_to_column(.data = Transcriptome2, var = "gene")
+
+X <- Proteome2 %>%
+  inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
+```
+
+With the combined dataset, we can explore even further multivariate structures, such as clustering of the time point variables across both transcriptomic and proteomic structures:
+
+```{r, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 8, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
+X_mat <- as.matrix(X[, 2:ncol(X)])
+row.order <- stats::hclust(stats::dist(X_mat, method = "euclidean"), method = "average")$order # Hierarchical cluster on rows
+col.order <- stats::hclust(stats::dist(t(X_mat), method = "euclidean"), method = "average")$order # Hierarchical cluster on columns
+
+# Reorder by cluster outputs, turn into dataframe, and draw plot
+  
+cluster_plot <- reshape2::melt(as.matrix(X_mat[row.order, col.order])) %>% 
+  rename(id = .data$Var1,
+        names = .data$Var2) %>%
+  mutate(names = gsub("t", "transcriptome", names),
+         names = gsub("p", "proteome", names)) %>%
+  ggplot(aes(x = names, y = id, fill = value))  +
+  geom_tile() +
+  scale_fill_viridis_b() +
+  labs(x = "Time-course profile",
+       y = "Gene",
+       fill = "Value") +
+  theme_bw() + 
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(angle = 90),
+        panel.grid = element_blank())
+
+print(cluster_plot)
+```
+
+## Novel gene classification
+
+Following exploratory data analysis, a predictive model for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) was constructed. This involved several pre-processing steps:
+
+1. XX
+2. XX
+3. XX
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+The model that was chosen is a generalised additive model(GAM; Wood, 2017 ^[Wood, S.N. (2017). Generalized Additive Models: An Introduction with R (2nd ed.). Chapman and Hall/CRC. https://doi.org/10.1201/9781315370279])---a generalisation of the standard generalised linear model. Specifically, a GAM can be written simply using the following form (assuming Gaussian error $\epsilon$):
+
+\begin{equation}
+y = \beta_{0} + f(x_{1}) + f(x_{2}) \dots + f(x_{n}) + \epsilon, \;\; \epsilon \sim \mathcal{N}(0, \sigma^{2}},
+\end{equation}
+
+where $y$ is some response variable, $\beta_{0}$ is the intercept term, $f(x_{1-n})$ are unknown *smooth* functions over each covariate (i.e., time point for each -omics data type), and $\epsilon$ is the error term. Importantly, the smooth terms are *splines*, each of which is composed of the summation of numerous local basis regression functions, often of a polynomial order, such as cubic ($x^{3}$). The number of basis functions is controlled through the specification of *knots*, where a higher number will produce a more "wiggly" spline (thus can overfit to the data easier), while a lower number will produce a smoother spline (which may not capture local variation as well). Since GAMs are an extension of GLMs, we can specify the correct likelihood function for the data on-hand---in our case, a binomial link function since we have a two-class classification problem. GAMs are implemented in R through the `mgcv`^[Wood, S.N. (2011) Fast stable restricted maximum likelihood and marginal likelihood estimation of semiparametric generalized linear models. Journal of the Royal Statistical Society (B) 73(1):3-36] package.
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+### Comparison to benchmark results
+
+X
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+# SessionInfo
+
+```{r}
+sessionInfo()
+```
