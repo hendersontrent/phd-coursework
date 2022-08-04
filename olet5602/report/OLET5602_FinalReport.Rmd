@@ -206,7 +206,7 @@ X <- Proteome2 %>%
   inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
 ```
 
-With the combined dataset, we can explore even further multivariate structures, such as clustering of the time point variables across both transcriptomic and proteomic structures:
+With the combined dataset, we can explore even further multivariate structures, such as clustering of the time point variables across both transcriptomic and proteomic structures. The plot below organises a heatmap of values across the time course variables using hierarchical clustering on both rows and columns to attempt to pull out informative structure if any exists between genes and their values at each time point. We find that while there are small groups of genes that exhibit similar values across a couple of time points, such as the top middle left and top middle right of the plot, there is largely no substantially meaningfully clusters to extract.
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 8, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
 X_mat <- as.matrix(X[, 2:ncol(X)])
