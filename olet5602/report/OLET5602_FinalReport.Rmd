@@ -202,13 +202,91 @@ Transcriptome2 <- as.data.frame(Transcriptome)
 colnames(Transcriptome2) <- paste0("t_", colnames(Transcriptome2))
 Transcriptome2 <- rownames_to_column(.data = Transcriptome2, var = "gene")
 
-X <- Proteome2 %>%
+prot_trans_df <- Proteome2 %>%
   inner_join(Transcriptome2, by = c("gene" = "gene")) %>% # Ensures we retain only common genes
   mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
          label = as.factor(label))
 ```
 
-Preparation of the epigenome datasets was also performed for each of the six histone marks:
+XX
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse) and other genes coloured in green."}
+# Visualise genes from both classes in low dimensional space
+
+osn_pca <- stats::prcomp(prot_trans_df[, 2:16], scale = TRUE)
+
+osn_pca_df <- osn_pca %>%
+  augment(as.data.frame(prot_trans_df[, 2:16])) %>%
+  dplyr::select(c(.fittedPC1:.fittedPC15)) %>%
+  mutate(gene = prot_trans_df$gene,
+         label = prot_trans_df$label)
+
+osn_pca_eigens <- osn_pca %>%
+  tidy(matrix = "eigenvalues") %>%
+  filter(PC %in% c(1, 2)) %>% # Filter to just the 2 going in the plot
+  select(c(PC, percent)) %>%
+  mutate(percent = paste0("(", round(percent * 100, digits = 2), "%)")) # Make nice format
+
+osn_pca_plot <- osn_pca_df %>%
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
+  geom_point(data = subset(osn_pca_df, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
+  stat_ellipse(data = subset(osn_pca_df, label == "OSN"), geom = "polygon", alpha = 0.4, fill = "#F8766D") +
+  geom_point(data = subset(osn_pca_df, label == "OSN"), size = 1, colour = "#F8766D") +
+  labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
+       y = paste0("PC 2 ", osn_pca_eigens$percent[2]),
+       caption = "Variance explained by each PC is shown in parentheses.") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+print(osn_pca_plot)
+```
+
+Guided by the low dimensional projection presented in the above PCA plot, a method for finding genes 
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are further than $1.96SD$ away from the mean of both PC1 and PC2 coloured in purple."}
+# Calculate mean and SD for first two PCs for "OSN" class
+
+osn <- osn_pca_df[osn_pca_df$label == "OSN", c(".fittedPC1", ".fittedPC2")]
+mu <- c(mean(osn$.fittedPC1, na.rm = TRUE), mean(osn$.fittedPC2, na.rm = TRUE))
+sigma <- c(sd(osn$.fittedPC1, na.rm = TRUE), sd(osn$.fittedPC2, na.rm = TRUE))
+
+# Find "Other" genes which are further than 1.96 * SD
+
+other <- osn_pca_df %>%
+  filter(label == "Other") %>%
+  dplyr::select(c(gene, .fittedPC1, .fittedPC2)) %>%
+  mutate(flag = case_when(
+          .fittedPC1 > (mu[1] + 1.96 * sigma[1]) & .fittedPC2 > (mu[2] + 1.96 * sigma[2]) ~ TRUE,
+          .fittedPC1 < (mu[1] - 1.96 * sigma[1]) & .fittedPC2 < (mu[2] - 1.96 * sigma[2]) ~ TRUE,
+          .fittedPC1 > (mu[1] + 1.96 * sigma[1]) & .fittedPC2 < (mu[2] - 1.96 * sigma[2]) ~ TRUE,
+          .fittedPC1 < (mu[1] - 1.96 * sigma[1]) & .fittedPC2 > (mu[2] + 1.96 * sigma[2]) ~ TRUE,
+          TRUE                                                                            ~ FALSE)) %>%
+  filter(flag) %>%
+  pull(gene)
+
+osn_pca_plot_hl <- osn_pca_df %>%
+  mutate(label = ifelse(label == "Other" & gene %in% other, "Subset", as.character(label)))
+
+osn_pca_plot_hl <- osn_pca_plot_hl %>%
+  ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
+  geom_point(data = subset(osn_pca_plot_hl, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
+  stat_ellipse(data = subset(osn_pca_plot_hl, label == "OSN"), geom = "polygon", alpha = 0.4, fill = "#F8766D") +
+  geom_point(data = subset(osn_pca_plot_hl, label == "OSN"), size = 1, colour = "#F8766D") +
+  geom_point(data = subset(osn_pca_plot_hl, label == "Subset"), size = 1, colour = "#C77CFF") +
+  labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
+       y = paste0("PC 2 ", osn_pca_eigens$percent[2]),
+       caption = "Variance explained by each PC is shown in parentheses.") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+print(osn_pca_plot_hl)
+```
+
+XX
+
+Preparation of the epigenome datasets was also performed separately for each of the six histone marks:
 
 ```{r, message = FALSE, warning = FALSE}
 #' Function to prepare histone mark data for modelling
@@ -222,7 +300,8 @@ prepare_histone_df <- function(X){
   
   X1 <- as.data.frame(X) %>%
   tibble::rownames_to_column(var = "gene") %>%
-  mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"))
+  mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
+         label = as.factor(label))
   
   return(X1)
 }
