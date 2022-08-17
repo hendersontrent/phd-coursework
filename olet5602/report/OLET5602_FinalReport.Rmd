@@ -203,36 +203,36 @@ colnames(Transcriptome2) <- paste0("t_", colnames(Transcriptome2))
 Transcriptome2 <- rownames_to_column(.data = Transcriptome2, var = "gene")
 
 X <- Proteome2 %>%
-  inner_join(Transcriptome2, by = c("gene" = "gene")) # Ensures we retain only common genes
+  inner_join(Transcriptome2, by = c("gene" = "gene")) %>% # Ensures we retain only common genes
+  mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
+         label = as.factor(label))
 ```
 
-With the combined dataset, we can explore even further multivariate structures, such as clustering of the time point variables across both transcriptomic and proteomic structures. The plot below organises a heatmap of values across the time course variables using hierarchical clustering on both rows and columns to attempt to pull out informative structure if any exists between genes and their values at each time point. We find that while there are small groups of genes that exhibit similar values across a couple of time points, such as the top middle left and top middle right of the plot, there is largely no substantially meaningfully clusters to extract.
+Preparation of the epigenome datasets was also performed for each of the six histone marks:
 
-```{r, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 8, fig.cap = "Cluster analysis of transcriptome and proteome time-course differentiation profiles."}
-X_mat <- as.matrix(X[, 2:ncol(X)])
-row.order <- stats::hclust(stats::dist(X_mat, method = "euclidean"), method = "average")$order # Hierarchical cluster on rows
-col.order <- stats::hclust(stats::dist(t(X_mat), method = "euclidean"), method = "average")$order # Hierarchical cluster on columns
+```{r, message = FALSE, warning = FALSE}
+#' Function to prepare histone mark data for modelling
+#' 
+#' @param X the data matrix
+#' @return an object of class \code{data.frame}
+#' @author Trent Henderson
+#' 
 
-# Reorder by cluster outputs, turn into dataframe, and draw plot
+prepare_histone_df <- function(X){
   
-cluster_plot <- reshape2::melt(as.matrix(X_mat[row.order, col.order])) %>% 
-  rename(id = .data$Var1,
-        names = .data$Var2) %>%
-  mutate(names = gsub("t", "transcriptome", names),
-         names = gsub("p", "proteome", names)) %>%
-  ggplot(aes(x = names, y = id, fill = value))  +
-  geom_tile() +
-  scale_fill_viridis_b() +
-  labs(x = "Time-course profile",
-       y = "Gene",
-       fill = "Value") +
-  theme_bw() + 
-  theme(legend.position = "bottom",
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 90),
-        panel.grid = element_blank())
+  X1 <- as.data.frame(X) %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"))
+  
+  return(X1)
+}
 
-print(cluster_plot)
+H3K27ac_df <- prepare_histone_df(H3K27ac)
+H3K27me3_df <- prepare_histone_df(H3K27me3)
+H3K4me1_df <- prepare_histone_df(H3K4me1)
+H3K4me3_df <- prepare_histone_df(H3K4me3)
+H3K9me2_df <- prepare_histone_df(H3K9me2)
+PolII_df <- prepare_histone_df(PolII)
 ```
 
 ## Novel gene classification
@@ -247,15 +247,48 @@ Following exploratory data analysis, a predictive model for identifying gene mem
 
 ```
 
-The model that was chosen is a generalised additive model(GAM; Wood, 2017 ^[Wood, S.N. (2017). Generalized Additive Models: An Introduction with R (2nd ed.). Chapman and Hall/CRC. https://doi.org/10.1201/9781315370279])---a generalisation of the standard generalised linear model. Specifically, a GAM can be written simply using the following form (assuming Gaussian error $\epsilon$):
-
-\begin{equation}
-y = \beta_{0} + f(x_{1}) + f(x_{2}) \dots + f(x_{n}) + \epsilon, \;\; \epsilon \sim \mathcal{N}(0, \sigma^{2}},
-\end{equation}
-
-where $y$ is some response variable, $\beta_{0}$ is the intercept term, $f(x_{1-n})$ are unknown *smooth* functions over each covariate (i.e., time point for each -omics data type), and $\epsilon$ is the error term. Importantly, the smooth terms are *splines*, each of which is composed of the summation of numerous local basis regression functions, often of a polynomial order, such as cubic ($x^{3}$). The number of basis functions is controlled through the specification of *knots*, where a higher number will produce a more "wiggly" spline (thus can overfit to the data easier), while a lower number will produce a smoother spline (which may not capture local variation as well). Since GAMs are an extension of GLMs, we can specify the correct likelihood function for the data on-hand---in our case, a binomial link function since we have a two-class classification problem. GAMs are implemented in R through the `mgcv`^[Wood, S.N. (2011) Fast stable restricted maximum likelihood and marginal likelihood estimation of semiparametric generalized linear models. Journal of the Royal Statistical Society (B) 73(1):3-36] package.
+The model that was chosen is a XX.
 
 ```{r, message = FALSE, warning = FALSE}
+library(caret)
+
+#' Function to create a train-test split and do 1-fold CV
+#' 
+#' @param data input dataframe
+#' @param model string of the \code{caret} model to use. Defaults to \code{"gaussprRadial"}
+#' @param seed fix R's pseudo-random number generator
+#' @return object of class \code{list}
+#' @author Trent Henderson
+#' 
+
+fit_model <- function(data, model = "gaussprRadial", seed){
+  
+  set.seed(seed)
+  
+  # Create train-test sets
+  
+  inTrain <- caret::createDataPartition(y = X2$label, p = .75, list = FALSE)
+  train <- X2[inTrain, ]
+  test <- X2[- inTrain, ]
+  
+  # Fit model and apply
+  
+  fit <- caret::train(label ~ .,
+                      data = train,
+                      method = model,
+                      trControl = caret::trainControl(method = "cv", number = 10),
+                      classProbs = TRUE,
+                      summaryFunction = twoClassSummary)
+  
+  # Generate confusion matrix
+  
+  preds <- predict(fit, newdata = test)
+  
+  return(cm)
+}
+
+# Run the function
+
 
 ```
 
