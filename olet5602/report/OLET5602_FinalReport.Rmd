@@ -389,10 +389,10 @@ names(models) <- c("prot_trans_df", "H3K27ac_df", "H3K27me3_df", "H3K4me1_df", "
 
 With the seven models now trained, we move to comparing predictive performance against benchmarks. The major comparison is the performance of each model in predicting gene class membership of the whole list of OSN target genes and not just the subset which formed the basis of the data to train each model. Performance can be quantified through different metrics obtained via calculations on the confusion matrix --- a matrix which cross-tabulates frequencies of model predictions against the actual class labels. The confusion matrix (for a two-class problem) returns four potential mutually-exclusive, collectively-exhaustive values: (i) true positive (TP); (ii) false positive (FP); (iii) false negative (FN); and (iv) true negative (TN). We summarise each model's predictive performance of the full gene set using four metrics calculated from the confusion matrix:
 
-1. Accuracy --- $\frac{\text{TP} + \text{TN}}{\text{TP} + \text{FP} + \text{FN} + \text{TN}}$
-3. Sensitivity --- $\frac{\text{TP}}{\text{TP} + \text{FN}}$
-4. Specificity --- $\frac{TN}{\text{FP} + \text{TN}}$
-2. Balanced Accuracy --- $\frac{\text{sensitivity} + \text{specificity}}{2}$
+1. Accuracy $= \frac{\text{TP} + \text{TN}}{\text{TP} + \text{FP} + \text{FN} + \text{TN}}$
+3. Sensitivity $= \frac{\text{TP}}{\text{TP} + \text{FN}}$
+4. Specificity $= \frac{TN}{\text{FP} + \text{TN}}$
+2. Balanced Accuracy $= \frac{\text{sensitivity} + \text{specificity}}{2}$
 
 The code below produces Table \@ref(tab:performance), which compares each model on these performance metrics.
 
