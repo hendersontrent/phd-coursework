@@ -321,25 +321,21 @@ PolII_df <- prepare_histone_df(PolII)
 
 ## Novel gene classification
 
-Following exploratory data analysis, a predictive model for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) was constructed. This involved several pre-processing steps:
+Following exploratory data analysis, a set of seven predictive models for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with a exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). The most common covariance function is the exponentiated-quadratic, which we apply here. This function forms the basis for simpler kernel-based machine learning techniques, such as support vector machines. One of the reasons for its popularity is that it looks quite similar to the formula for a univariate Gaussian distribution. It is mathematically defined as:
 
-1. XX
-2. XX
-3. XX
+$$
+k(x, x') = \text{exp} \left( -\frac{1}{2\sigma^{2}}||x - x'||^{2} \right)
+$$
 
-```{r, message = FALSE, warning = FALSE}
-
-```
-
-The model that was chosen is a XX.
+where where $\sigma^{2}$ is the variance (average distance of a function away from its mean) and $\mathcal{l}$ is the lengthscale (the length of the "wiggles" in a function). These are *hyperparameters* that can be set or learnt to control the shape of the kernel. To implement this model in R, we make use of the `caret` package for machine learning which enables usage of an RBF GP through the model labelled `"gaussprRadial"`. Below, we define a function for training such a model using $10$-fold cross-validation, and run it for each of the seven datasets separately.
 
 ```{r, message = FALSE, warning = FALSE}
 #' Do 10-fold CV to train a machine learning model
 #' 
 #' @param data \code{data.frame} of input data
 #' @param model string of the \code{caret} model to use. Defaults to \code{"gaussprRadial"}
-#' @param seed fix R's pseudo-random number generator. Defaults to \code{123}
-#' @return object of class \code{list}
+#' @param seed fix R's pseudo-random number generator for reproducibility. Defaults to \code{123}
+#' @return object of class \code{list} containing \code{caret} model information
 #' @author Trent Henderson
 #' 
 
@@ -352,7 +348,7 @@ fit_model <- function(data, model = "gaussprRadial", seed = 123){
   data2 <- data %>%
     dplyr::select(-c(gene))
   
-  # Fit model and apply
+  # Fit model
   
   fit <- caret::train(label ~ .,
                       data = data2,
@@ -373,11 +369,13 @@ for(i in 1:length(model_dfs)){
   themod <- fit_model(data = model_dfs[[i]], model = "gaussprRadial", seed = 123)
   models[[i]] <- themod
 }
+
+names(models) <- c("prot_trans_df", "H3K27ac_df", "H3K27me3_df", "H3K4me1_df", "H3K4me3_df", "H3K9me2_df", "PolII_df")
 ```
 
 ### Comparison to benchmark results
 
-X
+With the seven models now trained, we move to comparing predictive performance against benchmarks. The major comparison is the performance of each model in predicting gene class membership of the whole list of OSN target genes and not just the subset which formed the basis of the data to train each model. Performance can be quantified through different metrics obtained via calculations on the confusion matrix --- a matrix which cross-tabulates frequencies of model predictions against the actual class labels. The confusion matrix (for a two-class problem) returns four potential mutually-exclusive, collectively-exhaustive values: (i) true positive; (ii) false positive; (iii) false negative; and (iv) true negative.
 
 ```{r, message = FALSE, warning = FALSE}
 
