@@ -243,9 +243,9 @@ osn_pca_plot <- osn_pca_df %>%
 print(osn_pca_plot)
 ```
 
-Guided by the low dimensional projection presented in the above PCA plot, a method for finding genes 
+Guided by the low dimensional projection presented in the above PCA plot, we can reduce the class imbalance through statistical selection of a sample of "Other" genes that are least like the OSN genes. The heuristic for this paper is that we will retain only those Other genes which lie outside the $99\%$ multivariate normal distribution covariance ellipse of the OSN genes in the two-dimensional space of $PC1$ and $PC2$. The below code finds these genes and highlights them in the space. This reduces the sample size of Other genes from $8260$ to $389$, which represents a shift in ratio of $OSN:Other$ genes of $95:8260$ to $95:389$ which is much more appropriate for statistical modelling.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are further than $1.96SD$ away from the mean of both PC1 and PC2 coloured in purple."}
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are least like OSN genes as determined by positioning outside the covariance ellipse are coloured in purple."}
 # Calculate mean and SD for first two PCs for "OSN" class
 
 osn <- osn_pca_df[osn_pca_df$label == "OSN", c(".fittedPC1", ".fittedPC2")]
@@ -290,9 +290,7 @@ osn_pca_plot_hl <- osn_pca_plot_hl %>%
 print(osn_pca_plot_hl)
 ```
 
-XX
-
-Preparation of the epigenome datasets was also performed separately for each of the six histone marks:
+Preparation of the epigenome datasets according to the filtering of Other genes was also performed separately for each of the six histone marks:
 
 ```{r, message = FALSE, warning = FALSE}
 #' Function to prepare histone mark data for modelling
@@ -359,16 +357,22 @@ fit_model <- function(data, model = "gaussprRadial", seed = 123){
   fit <- caret::train(label ~ .,
                       data = data2,
                       method = model,
-                      trControl = caret::trainControl(method = "cv", number = 10),
-                      classProbs = TRUE,
+                      trControl = caret::trainControl(method = "cv", number = 10, classProbs = TRUE),
+                      preProcess = c("center", "scale"),
                       summaryFunction = twoClassSummary)
   
   return(fit)
 }
 
-# Run the function
+# Run the function for all datasets
 
-prot_trans_mod <- fit_model(data = prot_trans_df, model = "gaussprRadial", seed = 123)
+models <- list()
+model_dfs <- list(prot_trans_df, H3K27ac_df, H3K27me3_df, H3K4me1_df, H3K4me3_df, H3K9me2_df, PolII_df)
+
+for(i in 1:length(model_dfs)){
+  themod <- fit_model(data = model_dfs[[i]], model = "gaussprRadial", seed = 123)
+  models[[i]] <- themod
+}
 ```
 
 ### Comparison to benchmark results
