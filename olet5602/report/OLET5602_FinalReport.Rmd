@@ -1,8 +1,10 @@
 ---
 title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
-author: "Trent Henderson"
+author: "Trent Henderson, Shivanjali Ratnaseelan, Ethan Chang, Henry Howard, Preethom Pal"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  bookdown::html_document2:
+    fig_caption: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -33,13 +35,13 @@ library(caret)
 
 # Exploratory data analysis
 
-XX use PCA
+Exploratory data analysis was performed to understand the three datasets avilable to us: (i) transcriptome; (ii) proteome; and (iii) epigenome (of which there are six separate histone mark datasets). The purpose of this analysis was to understand the role of the time-course differentiation variables across each data type, as these variables will be used to train classification algorithms later in this paper. We will explore each of the datasets in turn.
 
 ## Transcriptome
 
-The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. With such a large multivariate dataset, it is important to understand any relationships in the data, particularly in a lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot. We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
+The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. With such a large multivariate dataset, it is important to understand any relationships in the data, particularly in a lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot (as shown in Figure \@ref(fig:transPCA)). We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
+```{r transPCA, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
 #' Function to calculate PCA and return useful outputs for an input matrix
 #' @param matrix the input data matrix
 #' @param subtitle string for the plot subtitle. Defaults to \code{NULL} for no subtitle
@@ -99,16 +101,16 @@ print(transcriptome_pca$p)
 
 ## Proteome
 
-X. Applying the function defined earlier for the transcriptome case, but with the proteome input data, we can again see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains a similarly large percentage of the variance in the correlation matrix data ($61.31\%$), while the second PC explains $26.44\%$, for a combined total of $87.75\%$ --- another strong result for just two PCs. This, again, suggests that the dimensionality of the proteome dataset could be reduced using PCs.
+Applying the function defined earlier for the transcriptome case, but with the proteome input data, we can again in Figure \@ref(fig:protPCA) below see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains a similarly large percentage of the variance in the correlation matrix data ($61.31\%$), while the second PC explains $26.44\%$, for a combined total of $87.75\%$ --- another strong result for just two PCs. This, again, suggests that the dimensionality of the proteome dataset could be reduced using PCs.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
+```{r protPCA, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of proteome time-course differentation using PCA."}
 proteome_pca <- do_pca(matrix = Proteome)
 print(proteome_pca$p)
 ```
 
-Evidently, time courses across both transcriptomic and proteomic structures appear to be differentiated in a low dimensional space of the first two PCs. However, it remains unclear whether each PC is driven by one or more time courses. Examining the variable loadings for the PCA can reveal this information, which is plotted below. Here, we see for both transcriptome and proteome, that multiple variables (i.e., time courses) contribute meaningfully to each principal component --- especially the first two which are of primary interest to us. This means that if further analysis uses PCs as inputs instead of the raw time course data, any model would not simply be learning on time courses that loaded singularly onto each PC. However, we do see that very strong loadings exist for the 48hr time course onto the second-last PCs in both cases (PC 7 for transcriptome and PC 6 for proteome), which is interesting. Further, we see the earliest (0hr for transcriptome, 1hr for proteome) and latest (72hr for both datasets) time courses exhibit very strong loading onto the final PC in both cases --- which potentially highlights the heterogeneity of these two time points relative to the rest. 
+Evidently, time courses across both transcriptomic and proteomic structures appear to be differentiated in a low dimensional space of the first two PCs. However, it remains unclear whether each PC is driven by one or more time courses. Examining the variable loadings for the PCA can reveal this information, which is plotted below in Figure \@ref(fig:protTransLoad). Here, we see for both transcriptome and proteome, that multiple variables (i.e., time courses) contribute meaningfully to each principal component --- especially the first two which are of primary interest to us. This means that if further analysis uses PCs as inputs instead of the raw time course data, any model would not simply be learning on time courses that loaded singularly onto each PC. However, we do see that very strong loadings exist for the 48hr time course onto the second-last PCs in both cases (PC 7 for transcriptome and PC 6 for proteome), which is interesting. Further, we see the earliest (0hr for transcriptome, 1hr for proteome) and latest (72hr for both datasets) time courses exhibit very strong loading onto the final PC in both cases --- which potentially highlights the heterogeneity of these two time points relative to the rest. 
 
-```{r, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 8, fig.cap = "Variable loadings onto principal components for transcriptome and proteome datasets."}
+```{r protTransLoad, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4, fig.cap = "Variable loadings onto principal components for transcriptome and proteome datasets."}
 #' Function to plot factor loadings for PCA
 #' @param pca the model output object from \code{prcomp}
 #' @param subtitle string specifying the subtitle of the plot
@@ -167,9 +169,9 @@ patchwork::wrap_plots(transcriptome_load, proteome_load, ncol = 2, nrow = 1)
 
 ## Epigenome
 
-The transcriptome and proteome data contained a single matrix each. However, for the epigenomics data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), whose values are in a different scale for each one. With this in mind, we can perform the same analysis but separately for each histone mark. Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
+The transcriptome and proteome data contained a single matrix each. However, for the epigenomics data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), whose values are in a different scale for each one. With this in mind, we can perform the same analysis but separately for each histone mark (as shown in Figure \@ref(fig:epiPCA)). Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
+```{r epiPCA, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
 epigenome_list <- list(H3K27ac, H3K27me3, H3K4me1, H3K4me3, H3K9me2, PolII)
 epi_names <- c("H3K27ac", "H3K27me3", "H3K4me1", "H3K4me3", "H3K9me2", "PolII")
 names(epigenome_list) <- epi_names
@@ -180,9 +182,9 @@ patchwork::wrap_plots(plots, ncol = 3, nrow = 2) +
   patchwork::plot_annotation(caption = "Variance explained by each PC is shown in parentheses.")
 ```
 
-We can similarly explore the variable loadings for the PCA models for the epigenome data. In the matrix of plots below, we see that across the six histone marks, the first two PCs are typically characterised by loadings from multiple time course variables --- suggesting their suitability as inputs for modelling. However, we do also see that very strong loadings of a single time course onto a range of PCs are visible, such as for H3K4me1, where 24hr loads strongly onto PC 2, 0hr onto PC 4, 1hr onto PC 7, and 72 hr onto PC 8.
+We can similarly explore the variable loadings for the PCA models for the epigenome data. In Figure \@ref(fig:epiLoad) below, we see that across the six histone marks, the first two PCs are typically characterised by loadings from multiple time course variables --- suggesting their suitability as inputs for modelling. However, we do also see that very strong loadings of a single time course onto a range of PCs are visible, such as for H3K4me1, where 24hr loads strongly onto PC 2, 0hr onto PC 4, 1hr onto PC 7, and 72 hr onto PC 8.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Variable loadings onto principal components for epigenome datasets across six histone marks."}
+```{r epiLoad, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Variable loadings onto principal components for epigenome datasets across six histone marks."}
 epigenome_pc_list <- list(epigenomes$H3K27ac$fits, epigenomes$H3K27me3$fits, epigenomes$H3K4me1$fits, 
                           epigenomes$H3K4me3$fits, epigenomes$H3K9me2$fits, epigenomes$PolII$fits)
 
@@ -209,9 +211,9 @@ prot_trans_df <- Proteome2 %>%
          label = as.factor(label))
 ```
 
-XX
+However, it is noted that there is a substantial imbalance between the classes, with $N = 95$ OSN genes and $N = 8260$ Other genes. To understand the relative positioning of all these genes in an interpretable space, we reduced the dimensionality of this concatenated dataset from 15 variables down to 2 using principal components analysis. Figure \@ref(fig:pcaSample) below visualises the genes in this low dimensional projection, with OSN genes coloured red and Other genes coloured green. A $99\%$ covariance ellipsoid was calculated from the multivariate normal distribution of the first two PCs for the OSN genes to visualise the number of Other genes that can be considered *least similar* to OSN genes in this space.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse) and other genes coloured in green."}
+```{r pcaSample, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse) and other genes coloured in green."}
 # Visualise genes from both classes in low dimensional space
 
 osn_pca <- stats::prcomp(prot_trans_df[, 2:16], scale = TRUE)
@@ -243,9 +245,9 @@ osn_pca_plot <- osn_pca_df %>%
 print(osn_pca_plot)
 ```
 
-Guided by the low dimensional projection presented in the above PCA plot, we can reduce the class imbalance through statistical selection of a sample of "Other" genes that are least like the OSN genes. The heuristic for this paper is that we will retain only those Other genes which lie outside the $99\%$ multivariate normal distribution covariance ellipse of the OSN genes in the two-dimensional space of $PC1$ and $PC2$. The below code finds these genes and highlights them in the space. This reduces the sample size of Other genes from $8260$ to $389$, which represents a shift in ratio of $OSN:Other$ genes of $95:8260$ to $95:389$ which is much more appropriate for statistical modelling.
+Guided by the low dimensional projection presented in Figure \@ref(fig:pcaSample), we can reduce the class imbalance in the data through statistical selection of a sample of "Other" genes that are 'least like' the OSN genes from which we can construct a classification algorithm. The heuristic for this paper is that we will retain only those Other genes which lie outside the $99\%$ multivariate normal distribution covariance ellipse of the OSN genes in the two-dimensional space of $PC1$ and $PC2$. The below code finds these genes and highlights them in the space, as plotted in Figure \@ref(fig:pcaSubset). This reduces the sample size of Other genes from $8260$ to $389$, which represents a shift in ratio of $OSN:Other$ genes of $95:8260$ to $95:389$ which is much more appropriate for statistical modelling.
 
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are least like OSN genes as determined by positioning outside the covariance ellipse are coloured in purple."}
+```{r pcaSubset, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are least like OSN genes as determined by positioning outside the covariance ellipse are coloured in purple."}
 # Find "Other" genes which lie outside the 99% covariance ellipse of the OSN genes
 
 coords <- ggplot_build(osn_pca_plot)$data
@@ -325,7 +327,13 @@ PolII_df <- prepare_histone_df(PolII)
 
 ## Novel gene classification
 
-Following exploratory data analysis, a set of seven predictive models for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with a exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). The most common covariance function is the exponentiated-quadratic, which we apply here. This function forms the basis for simpler kernel-based machine learning techniques, such as support vector machines. One of the reasons for its popularity is that it looks quite similar to the formula for a univariate Gaussian distribution. It is mathematically defined as:
+Following exploratory data analysis, a set of seven predictive models for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with a exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). Putting this together, we can define a GP as:
+
+$$
+f(x) = \mathcal{GP}(m(x), k(x, x'))
+$$
+
+The most common covariance function is the exponentiated-quadratic, which we apply here. This function forms the basis for simpler kernel-based machine learning techniques, such as support vector machines. One of the reasons for its popularity is that it looks quite similar to the formula for a univariate Gaussian distribution. It is mathematically defined as:
 
 $$
 k(x, x') = \text{exp} \left( -\frac{1}{2\sigma^{2}}||x - x'||^{2} \right)
@@ -386,7 +394,9 @@ With the seven models now trained, we move to comparing predictive performance a
 4. Specificity --- $\frac{TN}{\text{FP} + \text{TN}}$
 2. Balanced Accuracy --- $\frac{\text{sensitivity} + \text{specificity}}{2}$
 
-```{r, message = FALSE, warning = FALSE}
+The code below produces Table \@ref(tab:performance), which compares each model on these performance metrics.
+
+```{r performance, message = FALSE, warning = FALSE}
 # Prepare evaluation datasets
 
 prot_trans_df2 <- Proteome2 %>%
@@ -411,15 +421,17 @@ metrics <- list()
 
 for(i in 1:length(models)){
   
-  pred_data <- eval_dfs[[i]] %>% dplyr::select(-c(gene)) #Remove gene column to avoid model errors
-  pred <- predict(models[[i]], newdata = pred_data, probability = TRUE, decision.values = TRUE) # Generate predictions
-  cm <- table(pred, eval_dfs[[i]]$label) # Confusion matrix
+  pred_data <- eval_dfs[[i]] %>% dplyr::select(-c(gene)) # Remove gene column to avoid model errors
+  pred <- predict(models[[i]], newdata = pred_data, type = "prob") # Generate predictions
+  pred <- pred %>% mutate(predicted_label = ifelse(pred[1] > pred[2], colnames(pred)[1], colnames(pred)[2]))
+  pred_data <- pred_data %>% mutate(predicted_label = as.factor(pred$predicted_label))
+  cm <- caret::confusionMatrix(pred_data$predicted_label, pred_data$label) # Confusion matrix
   
-  results <- data.frame(Model = names(model)[i],
-                        Accuracy = acc,
-                        `Balanced Accuracy` = bal_acc,
-                        Sensitivity = sens,
-                        Specificity = spec) # Summarise data
+  results <- data.frame(Model = ifelse(i == 1, "Proteome + Transcriptome", paste0("Epigenome (", gsub("_df", "\\1", names(models)[i]), ")")),
+                        Accuracy = round(cm$overall[1], digits = 3),
+                        `Balanced Accuracy` = round(cm$byClass[11], digits = 3),
+                        Sensitivity = round(cm$byClass[1], digits = 3),
+                        Specificity = round(cm$byClass[2], digits = 3)) # Summarise performance
   
   metrics[[i]] <- results
 }
@@ -427,8 +439,11 @@ for(i in 1:length(models)){
 # Bind results and present table
 
 all_metrics <- do.call(rbind, metrics) %>% arrange(-Accuracy)
+rownames(all_metrics) <- NULL
 knitr::kable(all_metrics, caption = "Summary of predictive performance of all models.")
 ```
+
+We find that overall, all models can classify the larger unseen gene list with accuracy far above the chance probability of $0.5$. We find that the combined proteome/transcriptome dataset typically outperforms the individual epigenome histone mark datasets, achieving $>90\%$ for both accuracy and balanced accuracy. Further, this model often correctly predicts both the OSN class ($0.822$ sensitivity) and the Other class ($0.995$ specificity). However, it achieves this result at the expense of a slightly larger multidimensional space, as this model used 15 predictor variables compared to the 8 used by each of the histone mark models. For the epigenome models, we find that H3K9me2 demonstrates the highest accuracy ($86.3\%$), but the worst balanced accuracy ($53.1\%$) --- which indicates that this model's accuracy performance is dictated largely by assignment of class labels to the majority class ("Other"). This is further supported through its sensitivity and specificity results, which highlight that the model poorly predicts the OSN class ($0.074$ sensitivity) but predicts the Other class well ($0.988$ specificity). In contrast, the PolIII histone mark does not see this performance dropoff, demonstrating $78.9\%$ classification accuracy and the strongest balanced classification accuracy of all the histone marks ($71.0\%$).
 
 # SessionInfo
 
