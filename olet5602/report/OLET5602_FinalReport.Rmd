@@ -28,6 +28,7 @@ library(ggrepel)
 library(patchwork)
 library(broom)
 library(factoextra)
+library(caret)
 ```
 
 # Exploratory data analysis
@@ -230,7 +231,7 @@ osn_pca_eigens <- osn_pca %>%
 osn_pca_plot <- osn_pca_df %>%
   ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
   geom_point(data = subset(osn_pca_df, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
-  stat_ellipse(data = subset(osn_pca_df, label == "OSN"), geom = "polygon", alpha = 0.4, fill = "#F8766D") +
+  stat_ellipse(data = subset(osn_pca_df, label == "OSN"), type = "norm", level = 0.99, geom = "polygon", alpha = 0.4, fill = "#F8766D") +
   geom_point(data = subset(osn_pca_df, label == "OSN"), size = 1, colour = "#F8766D") +
   labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
        y = paste0("PC 2 ", osn_pca_eigens$percent[2]),
@@ -251,19 +252,24 @@ osn <- osn_pca_df[osn_pca_df$label == "OSN", c(".fittedPC1", ".fittedPC2")]
 mu <- c(mean(osn$.fittedPC1, na.rm = TRUE), mean(osn$.fittedPC2, na.rm = TRUE))
 sigma <- c(sd(osn$.fittedPC1, na.rm = TRUE), sd(osn$.fittedPC2, na.rm = TRUE))
 
-# Find "Other" genes which are further than 1.96 * SD
+# Find "Other" genes which are further than 1.96 * SD away from PC1 and PC2
 
-other <- osn_pca_df %>%
-  filter(label == "Other") %>%
-  dplyr::select(c(gene, .fittedPC1, .fittedPC2)) %>%
-  mutate(flag = case_when(
-          .fittedPC1 > (mu[1] + 1.96 * sigma[1]) & .fittedPC2 > (mu[2] + 1.96 * sigma[2]) ~ TRUE,
-          .fittedPC1 < (mu[1] - 1.96 * sigma[1]) & .fittedPC2 < (mu[2] - 1.96 * sigma[2]) ~ TRUE,
-          .fittedPC1 > (mu[1] + 1.96 * sigma[1]) & .fittedPC2 < (mu[2] - 1.96 * sigma[2]) ~ TRUE,
-          .fittedPC1 < (mu[1] - 1.96 * sigma[1]) & .fittedPC2 > (mu[2] + 1.96 * sigma[2]) ~ TRUE,
-          TRUE                                                                            ~ FALSE)) %>%
-  filter(flag) %>%
-  pull(gene)
+coords <- ggplot_build(osn_pca_plot)$data
+points <- coords[[1]]
+ell <- coords[[2]]
+
+other <- data.frame(points[1:2], 
+                  in.ell = as.logical(sp::point.in.polygon(points$x, points$y, ell$x, ell$y))) %>%
+  mutate(gene = subset(osn_pca_df, label == "Other")$gene) %>%
+  filter(!in.ell) %>%
+  pull(gene) # Retain "Other" genes that lie outside the covariance ellipse
+
+# Subset original proteome/transcriptome dataset
+
+prot_trans_df <- prot_trans_df %>%
+  filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
+
+# Filter and re-draw plot
 
 osn_pca_plot_hl <- osn_pca_df %>%
   mutate(label = ifelse(label == "Other" & gene %in% other, "Subset", as.character(label)))
@@ -271,7 +277,7 @@ osn_pca_plot_hl <- osn_pca_df %>%
 osn_pca_plot_hl <- osn_pca_plot_hl %>%
   ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
   geom_point(data = subset(osn_pca_plot_hl, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
-  stat_ellipse(data = subset(osn_pca_plot_hl, label == "OSN"), geom = "polygon", alpha = 0.4, fill = "#F8766D") +
+  stat_ellipse(data = subset(osn_pca_plot_hl, label == "OSN"), type = "norm", level = 0.99, geom = "polygon", alpha = 0.4, fill = "#F8766D") +
   geom_point(data = subset(osn_pca_plot_hl, label == "OSN"), size = 1, colour = "#F8766D") +
   geom_point(data = subset(osn_pca_plot_hl, label == "Subset"), size = 1, colour = "#C77CFF") +
   labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
@@ -301,7 +307,8 @@ prepare_histone_df <- function(X){
   X1 <- as.data.frame(X) %>%
   tibble::rownames_to_column(var = "gene") %>%
   mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
-         label = as.factor(label))
+         label = as.factor(label)) %>%
+  filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
   
   return(X1)
 }
@@ -329,46 +336,39 @@ Following exploratory data analysis, a predictive model for identifying gene mem
 The model that was chosen is a XX.
 
 ```{r, message = FALSE, warning = FALSE}
-library(caret)
-
-#' Function to create a train-test split and do 1-fold CV
+#' Do 10-fold CV to train a machine learning model
 #' 
-#' @param data input dataframe
+#' @param data \code{data.frame} of input data
 #' @param model string of the \code{caret} model to use. Defaults to \code{"gaussprRadial"}
-#' @param seed fix R's pseudo-random number generator
+#' @param seed fix R's pseudo-random number generator. Defaults to \code{123}
 #' @return object of class \code{list}
 #' @author Trent Henderson
 #' 
 
-fit_model <- function(data, model = "gaussprRadial", seed){
+fit_model <- function(data, model = "gaussprRadial", seed = 123){
   
   set.seed(seed)
   
-  # Create train-test sets
+  # Remove "gene" column as it will mess with model
   
-  inTrain <- caret::createDataPartition(y = X2$label, p = .75, list = FALSE)
-  train <- X2[inTrain, ]
-  test <- X2[- inTrain, ]
+  data2 <- data %>%
+    dplyr::select(-c(gene))
   
   # Fit model and apply
   
   fit <- caret::train(label ~ .,
-                      data = train,
+                      data = data2,
                       method = model,
                       trControl = caret::trainControl(method = "cv", number = 10),
                       classProbs = TRUE,
                       summaryFunction = twoClassSummary)
   
-  # Generate confusion matrix
-  
-  preds <- predict(fit, newdata = test)
-  
-  return(cm)
+  return(fit)
 }
 
 # Run the function
 
-
+prot_trans_mod <- fit_model(data = prot_trans_df, model = "gaussprRadial", seed = 123)
 ```
 
 ### Comparison to benchmark results
