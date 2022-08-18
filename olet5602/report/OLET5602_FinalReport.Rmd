@@ -246,20 +246,14 @@ print(osn_pca_plot)
 Guided by the low dimensional projection presented in the above PCA plot, we can reduce the class imbalance through statistical selection of a sample of "Other" genes that are least like the OSN genes. The heuristic for this paper is that we will retain only those Other genes which lie outside the $99\%$ multivariate normal distribution covariance ellipse of the OSN genes in the two-dimensional space of $PC1$ and $PC2$. The below code finds these genes and highlights them in the space. This reduces the sample size of Other genes from $8260$ to $389$, which represents a shift in ratio of $OSN:Other$ genes of $95:8260$ to $95:389$ which is much more appropriate for statistical modelling.
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are least like OSN genes as determined by positioning outside the covariance ellipse are coloured in purple."}
-# Calculate mean and SD for first two PCs for "OSN" class
-
-osn <- osn_pca_df[osn_pca_df$label == "OSN", c(".fittedPC1", ".fittedPC2")]
-mu <- c(mean(osn$.fittedPC1, na.rm = TRUE), mean(osn$.fittedPC2, na.rm = TRUE))
-sigma <- c(sd(osn$.fittedPC1, na.rm = TRUE), sd(osn$.fittedPC2, na.rm = TRUE))
-
-# Find "Other" genes which are further than 1.96 * SD away from PC1 and PC2
+# Find "Other" genes which lie outside the 99% covariance ellipse of the OSN genes
 
 coords <- ggplot_build(osn_pca_plot)$data
 points <- coords[[1]]
 ell <- coords[[2]]
 
 other <- data.frame(points[1:2], 
-                  in.ell = as.logical(sp::point.in.polygon(points$x, points$y, ell$x, ell$y))) %>%
+                    in.ell = as.logical(sp::point.in.polygon(points$x, points$y, ell$x, ell$y))) %>%
   mutate(gene = subset(osn_pca_df, label == "Other")$gene) %>%
   filter(!in.ell) %>%
   pull(gene) # Retain "Other" genes that lie outside the covariance ellipse
@@ -296,17 +290,27 @@ Preparation of the epigenome datasets according to the filtering of Other genes 
 #' Function to prepare histone mark data for modelling
 #' 
 #' @param X the data matrix
+#' @param cm \code{Boolean} whether to label based on subset (for training) or not (for predictive evaluation). Defaults to \code{FALSE}
 #' @return an object of class \code{data.frame}
 #' @author Trent Henderson
 #' 
 
-prepare_histone_df <- function(X){
+prepare_histone_df <- function(X, cm = FALSE){
   
   X1 <- as.data.frame(X) %>%
-  tibble::rownames_to_column(var = "gene") %>%
-  mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
-         label = as.factor(label)) %>%
-  filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
+  tibble::rownames_to_column(var = "gene")
+  
+  if(cm){
+    X1 <- X1 %>%
+      mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
+             label = as.factor(label)) %>%
+      filter(gene %in% append(prot_trans_df2[prot_trans_df2$label == "OSN", 1], other))
+  } else{
+    X1 <- X1 %>%
+      mutate(label = ifelse(gene %in% OSN_target_genes, "OSN", "Other"),
+             label = as.factor(label)) %>%
+      filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
+  }
   
   return(X1)
 }
@@ -383,7 +387,47 @@ With the seven models now trained, we move to comparing predictive performance a
 2. Balanced Accuracy --- $\frac{\text{sensitivity} + \text{specificity}}{2}$
 
 ```{r, message = FALSE, warning = FALSE}
+# Prepare evaluation datasets
 
+prot_trans_df2 <- Proteome2 %>%
+  inner_join(Transcriptome2, by = c("gene" = "gene")) %>% # Ensures we retain only common genes
+  mutate(label = ifelse(gene %in% OSN_target_genes, "OSN", "Other"),
+         label = as.factor(label))
+
+prot_trans_df2 <- prot_trans_df2 %>%
+  filter(gene %in% append(prot_trans_df2[prot_trans_df2$label == "OSN", 1], other))
+
+H3K27ac_df2 <- prepare_histone_df(H3K27ac, cm = TRUE)
+H3K27me3_df2 <- prepare_histone_df(H3K27me3, cm = TRUE)
+H3K4me1_df2 <- prepare_histone_df(H3K4me1, cm = TRUE)
+H3K4me3_df2 <- prepare_histone_df(H3K4me3, cm = TRUE)
+H3K9me2_df2 <- prepare_histone_df(H3K9me2, cm = TRUE)
+PolII_df2 <- prepare_histone_df(PolII, cm = TRUE)
+eval_dfs <- list(prot_trans_df2, H3K27ac_df2, H3K27me3_df2, H3K4me1_df2, H3K4me3_df2, H3K9me2_df2, PolII_df2)
+
+# Compute performance metrics for each model/dataset
+
+metrics <- list()
+
+for(i in 1:length(models)){
+  
+  pred_data <- eval_dfs[[i]] %>% dplyr::select(-c(gene)) #Remove gene column to avoid model errors
+  pred <- predict(models[[i]], newdata = pred_data, probability = TRUE, decision.values = TRUE) # Generate predictions
+  cm <- table(pred, eval_dfs[[i]]$label) # Confusion matrix
+  
+  results <- data.frame(Model = names(model)[i],
+                        Accuracy = acc,
+                        `Balanced Accuracy` = bal_acc,
+                        Sensitivity = sens,
+                        Specificity = spec) # Summarise data
+  
+  metrics[[i]] <- results
+}
+
+# Bind results and present table
+
+all_metrics <- do.call(rbind, metrics) %>% arrange(-Accuracy)
+knitr::kable(all_metrics, caption = "Summary of predictive performance of all models.")
 ```
 
 # SessionInfo
