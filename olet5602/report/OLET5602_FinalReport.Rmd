@@ -46,12 +46,9 @@ The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 
 #' @param matrix the input data matrix
 #' @param subtitle string for the plot subtitle. Defaults to \code{NULL} for no subtitle
 #' @return an object of class \code{list}
-#' @author Trent Henderson
 #' 
 
 do_pca <- function(matrix, subtitle = NULL){
-  
-  stopifnot(is.matrix(matrix))
   
   # Fit PCA on correlation matrix
   
@@ -115,7 +112,6 @@ Evidently, time courses across both transcriptomic and proteomic structures appe
 #' @param pca the model output object from \code{prcomp}
 #' @param subtitle string specifying the subtitle of the plot
 #' @return object of class \code{ggplot}
-#' @author Trent Henderson
 #' 
 
 plot_loadings <- function(pca, subtitle){
@@ -290,11 +286,9 @@ Preparation of the epigenome datasets according to the filtering of Other genes 
 
 ```{r, message = FALSE, warning = FALSE}
 #' Function to prepare histone mark data for modelling
-#' 
 #' @param X the data matrix
 #' @param cm \code{Boolean} whether to label based on subset (for training) or not (for predictive evaluation). Defaults to \code{FALSE}
 #' @return an object of class \code{data.frame}
-#' @author Trent Henderson
 #' 
 
 prepare_histone_df <- function(X, cm = FALSE){
@@ -343,12 +337,10 @@ where where $\sigma^{2}$ is the variance (average distance of a function away fr
 
 ```{r, message = FALSE, warning = FALSE}
 #' Do 10-fold CV to train a machine learning model
-#' 
 #' @param data \code{data.frame} of input data
 #' @param model string of the \code{caret} model to use. Defaults to \code{"gaussprRadial"}
 #' @param seed fix R's pseudo-random number generator for reproducibility. Defaults to \code{123}
 #' @return object of class \code{list} containing \code{caret} model information
-#' @author Trent Henderson
 #' 
 
 fit_model <- function(data, model = "gaussprRadial", seed = 123){
