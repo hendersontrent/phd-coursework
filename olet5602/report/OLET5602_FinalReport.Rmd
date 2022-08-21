@@ -27,6 +27,7 @@ library(tidyr)
 library(purrr)
 library(ggplot2)
 library(ggrepel)
+library(GGally)
 library(patchwork)
 library(broom)
 library(factoextra)
@@ -39,7 +40,14 @@ Exploratory data analysis was performed to understand the three datasets avilabl
 
 ## Transcriptome
 
-The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. With such a large multivariate dataset, it is important to understand any relationships in the data, particularly in a lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot (as shown in Figure \@ref(fig:transPCA)). We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
+The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. Figure \@ref(fig:transLoad) below plots univariate and pairwise statistics for each time-course differentiation variable in the dataset. From a univariate perspective, we see roughly leptykurtic Gaussian distributions of values, except for the `0hr` timepoint, where we see smaller peaks symmetrically on either side of the mode. From a pairwise perspective, apart from all relationships involving `0hr`, we see roughly positive linear relationships, with the linearity becoming stronger between later timepoints. Notably, the pairwise relationships between `0hr` and all other timepoints appear discretised, and `1hr` and all other timepoints are positive linear but with heteroskedasticity.
+
+```{r transPairs, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 5, fig.cap = "Univariate and pairwise statistics of each time-course differentiation in the transcriptome dataset."}
+ggpairs(as.data.frame(Transcriptome)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+With such a large multivariate dataset, it is important to go beyond univariate and pairwise relationships to understand the multivariate structure of the data, particularly in an interpretable lower dimensional space. As a preliminary analysis, we seek to understand whether there is visual distinction between the time points. The code below defines a reusable function for computing a pairwise correlation matrix between each timepoint, computing a principal components analysis (PCA) on the correlation matrix, and then plotting the projection of the PCA into two dimensions as a scatterplot (as shown in Figure \@ref(fig:transPCA)). We can see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains $59.25\%$ of the variance in the correlation matrix data, while the second PC explains $31.61\%$, for a combined total of $90.68\%$ --- highlighting the dominance of these two PCs relative to the remaining six. As such, the dimensionality of the transcriptome dataset could be reduced substantially by using the PCs.
 
 ```{r transPCA, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome time-course differentation using PCA."}
 #' Function to calculate PCA and return useful outputs for an input matrix
@@ -97,6 +105,12 @@ print(transcriptome_pca$p)
 ```
 
 ## Proteome
+
+To first understand this dataset, we plotted the univariate and pairwise statistics (shown in Figure \@ref(fig:protPairs)). Again, from a univariate perspective, we see roughly leptykurtic Gaussian distributions of values. From a pairwise perspective, we see roughly positive linear relationships with heteroskedasticity, with the linearity becoming stronger between later timepoints.
+
+```{r protPairs, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 5, fig.cap = "Univariate and pairwise statistics of each time-course differentiation in the proteome dataset."}
+ggpairs(as.data.frame(Proteome))
+```
 
 Applying the function defined earlier for the transcriptome case, but with the proteome input data, we can again in Figure \@ref(fig:protPCA) below see a clear anti-clockwise trajectory of increasing time, with each positioned in its own region of space along this pattern. We also find that the first principal component (PC) explains a similarly large percentage of the variance in the correlation matrix data ($61.31\%$), while the second PC explains $26.44\%$, for a combined total of $87.75\%$ --- another strong result for just two PCs. This, again, suggests that the dimensionality of the proteome dataset could be reduced using PCs.
 
@@ -165,7 +179,7 @@ patchwork::wrap_plots(transcriptome_load, proteome_load, ncol = 2, nrow = 1)
 
 ## Epigenome
 
-The transcriptome and proteome data contained a single matrix each. However, for the epigenomics data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), whose values are in a different scale for each one. With this in mind, we can perform the same analysis but separately for each histone mark (as shown in Figure \@ref(fig:epiPCA)). Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
+The transcriptome and proteome data contained a single matrix each. However, for the epigenome data, there are six different histone marks (H3K4me3, H3K27me3, Pol2, H3K4me1, H3K27ac, and H3K9me2), with a separate matrix for each, whose values are all in a different scale. For brevity, we have omitted the pairs plots for each histone mark, but the analysis again showed positive linear associations between each timepoint, however, we also observed right-skewed Gamma distributions of values in the univariate setting. Since an interpretable low dimensional projection is of primary interest to us, we performed the same PCA analysis for each histone mark (as shown in Figure \@ref(fig:epiPCA)). Similar results are found for the epigenome, with the first two PCs almost all the variance across all six histone marks, with notable results including the $82.4\%$ variance explained by PC 1 alone for H3K4me3, and the lowest variance explained by a PC 1 ($52.44\%$) for Pol2.
 
 ```{r epiPCA, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8, fig.cap = "Low dimensional projection of epigenome time-course differentation using PCA."}
 epigenome_list <- list(H3K27ac, H3K27me3, H3K4me1, H3K4me3, H3K9me2, PolII)
