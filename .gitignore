@@ -43,3 +43,4 @@ vignettes/*.pdf
 olet5608/data*
 olet5610/report/OLET5610 Report/*.Rda
 olet5602/report/*.RData
+olet5602/report/*.Rda
