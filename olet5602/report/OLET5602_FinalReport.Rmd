@@ -2,6 +2,7 @@
 title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
 author: "Trent Henderson, Shivanjali Ratnaseelan, Ethan Chang, Henry Howard, Preethom Pal"
 date: "`r Sys.Date()`"
+bibliography: bibliography.bib
 output: 
   bookdown::html_document2:
     fig_caption: yes
@@ -13,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Background and purpose
 
-Transcriptional regulation orchestrates gene activity through the regulation of the DNA to RNA conversion process. This form of regulation is crucial to all living organisms. It is organised by transcription factors, who, along with other factors, in concert drive mRNA expression for an organism. These processes have wide-reaching, important implications, as distinct transcriptional networks drive development, lineage specification, and cell fate decisions during early embryonic development (Theunissen and Jaenisch, 2017). Recent advances in -omics technologies have made it possible to profile genome-wide transcriptional and epigenetic events for investigating transcriptional networks. As a result, a key goal of modern computational -omics work is to identify the target genes of transcription factors that drive key transcriptional events over a course of time. This report seeks to extend this goal by constructing a classification pipeline which uses -omics information (transcriptomics, proteomics, and epigenomics) to predict whether a target gene belongs to two important transcription factors (or not): SOX2 and NANOG. SOX2 is a key transcription factor for maintaining pluripotency (a cell's ability to differentiate into other cell types) of undifferentiated embryonic stem cells. NANOG also helps embryonic stem cells maintain pluripotency, but does so through the suppression of cell determination factors.
+Transcriptional regulation orchestrates gene activity through the regulation of the DNA to RNA conversion process. This form of regulation is crucial to all living organisms. It is organised by transcription factors, who, along with other factors, in concert drive mRNA expression for an organism. These processes have wide-reaching, important implications, as distinct transcriptional networks drive development, lineage specification, and cell fate decisions during early embryonic development [@theunissenMechanismsGeneRegulation2017]. Recent advances in -omics technologies have made it possible to profile genome-wide transcriptional and epigenetic events for investigating transcriptional networks. As a result, a key goal of modern computational -omics work is to identify the target genes of transcription factors that drive key transcriptional events over a course of time. This report seeks to extend this goal by constructing a classification pipeline which uses -omics information (transcriptomics, proteomics, and epigenomics) to predict whether a target gene belongs to two important transcription factors (or not): SOX2 and NANOG. SOX2 is a key transcription factor for maintaining pluripotency (a cell's ability to differentiate into other cell types) of undifferentiated embryonic stem cells. NANOG also helps embryonic stem cells maintain pluripotency, but does so through the suppression of cell determination factors.
 
 The following code excerpt loads the dataset and the relevant R packages to reproduce the work presented here (see end of the report for a full session information print out):
 
@@ -40,7 +41,7 @@ Exploratory data analysis was performed to understand the three datasets avilabl
 
 ## Transcriptome
 
-The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. Figure \@ref(fig:transLoad) below plots univariate and pairwise statistics for each time-course differentiation variable in the dataset. From a univariate perspective, we see roughly leptykurtic Gaussian distributions of values, except for the `0hr` timepoint, where we see smaller peaks symmetrically on either side of the mode. From a pairwise perspective, apart from all relationships involving `0hr`, we see roughly positive linear relationships, with the linearity becoming stronger between later timepoints. Notably, the pairwise relationships between `0hr` and all other timepoints appear discretised, and `1hr` and all other timepoints are positive linear but with heteroskedasticity.
+The transcriptome dataset contains $19,788$ unique genes, each sampled across 8 timepoints: 0hr (stem cells prior to differentiation stimulation), 1hr, 6hr, 12hr, 24hr, 36hr, 48hr, and 72hr. Figure \@ref(fig:transPairs) below plots univariate and pairwise statistics for each time-course differentiation variable in the dataset. From a univariate perspective, we see roughly leptykurtic Gaussian distributions of values, except for the `0hr` timepoint, where we see smaller peaks symmetrically on either side of the mode. From a pairwise perspective, apart from all relationships involving `0hr`, we see roughly positive linear relationships, with the linearity becoming stronger between later timepoints. Notably, the pairwise relationships between `0hr` and all other timepoints appear discretised, and `1hr` and all other timepoints are positive linear but with heteroskedasticity.
 
 ```{r transPairs, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 5, fig.cap = "Univariate and pairwise statistics of each time-course differentiation in the transcriptome dataset."}
 ggpairs(as.data.frame(Transcriptome)) +
@@ -333,7 +334,7 @@ H3K9me2_df <- prepare_histone_df(H3K9me2)
 PolII_df <- prepare_histone_df(PolII)
 ```
 
-## Novel gene classification
+## Gene classification
 
 Following exploratory data analysis, a set of seven predictive models for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with an exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). Putting this together, we can define a GP as:
 
@@ -456,8 +457,20 @@ knitr::kable(all_metrics, caption = "Summary of predictive performance of all mo
 
 We find that overall, all models can classify the larger unseen gene list with accuracy far above the chance probability of $0.5$. We find that the combined proteome/transcriptome dataset typically outperforms the individual epigenome histone mark datasets, achieving $>90\%$ for both accuracy and balanced accuracy. Further, this model often correctly predicts both the OSN class ($0.822$ sensitivity) and the Other class ($0.995$ specificity). However, it achieves this result at the expense of a slightly larger multidimensional space, as this model used 15 predictor variables compared to the 8 used by each of the histone mark models. For the epigenome models, we find that H3K9me2 demonstrates the highest accuracy ($86.3\%$), but the worst balanced accuracy ($54.4\%$) --- which indicates that this model's accuracy performance is dictated largely by assignment of class labels to the majority class ("Other"). This is further supported through its sensitivity and specificity results, which highlight that the model poorly predicts the OSN class ($0.105$ sensitivity) but predicts the Other class well ($0.983$ specificity). In contrast, the H3K27ac histone mark does not see this performance dropoff, demonstrating $69.7\%$ classification accuracy and the strongest balanced classification accuracy of all the histone marks ($69.6\%$).
 
+## Discussion
+
+Our classification models have proven to be an effective method for predicting the target genes of transcription factors SOX2 and NANOG, however, considering the scope of the molecular interactions occurring to maintain human embryonic stem cell pluripotency, there are several limitations that need to be addressed. These limitations hold implications for the interpretation of the lower balanced accuracy, specificity, and sensitivity values. While SOX2, NANOG, and OCT4 are the primary transcription factors in pluripotency regulation, there are still several missing components excluded from our model that need to be considered such as photoproteomes and other transcription factors, such as OCT4, SOX3, ESRRB and many more [@10.1634/stemcells.22-1-51]. These excluded components interplay with the binding of SOX2 and NANOG to target genes, as transcription factors affect the upregulation and downregulation of each other over differentiation and self-renewal periods, as seen in Figure \@ref(fig:pluri) [@PAPATSENKO2018180].
+
+```{r pluri, echo = FALSE, fig.cap = "Transcription factor regulation over differentiation and self-renewal periods. Source: Papatsenko, Waghray, and Lemischka (2018)."}
+knitr::include_graphics("pluripotency.png")
+```
+
+Moreover, our results indicated that the combined transcriptome/proteome dataset performed the best compared to the epigenome datasets, which may be attributed to the differences in the role transcription factors play in transcriptional and epigenetic regulation of stem cell gene expression. This highlights a series of challenges relating to determining how the interactions between epigenomic features and transcription factors correspond to maintaining pluripotency [@atlasiInterplayEpigeneticMarks2017]. One such challenge is the fact that transcription factors can interact with DNA methyltransferases to promote site-specific DNA methylation and histone modification to maintain stem cell pluripotency, rather than the transcription factor directly binding to the target gene [@gibneyEpigeneticsGeneExpression2010a]. Thus, our models can be further developed by accounting for missing or unknown data, such as the interplay between the transcription factors and epigenomic dynamics, which may be corrected by gene expression and sequencing technologies as they become more advanced.
+
 # SessionInfo
 
 ```{r}
 sessionInfo()
 ```
+
+# References
