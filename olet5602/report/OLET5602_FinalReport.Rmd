@@ -1,6 +1,6 @@
 ---
 title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
-author: "Trent Henderson, Shivanjali Ratnaseelan, Ethan Chang, Henry Howard, Preethom Pal"
+author: "Trent Henderson (510243698), Shivanjali Ratnaseelan, Ethan Chang, Henry Howard (520406175), Preethom Pal"
 date: "`r Sys.Date()`"
 bibliography: bibliography.bib
 output: 
@@ -33,6 +33,8 @@ library(patchwork)
 library(broom)
 library(factoextra)
 library(caret)
+library(sp)
+library(MLeval)
 ```
 
 # Exploratory data analysis
@@ -222,79 +224,121 @@ prot_trans_df <- Proteome2 %>%
          label = as.factor(label))
 ```
 
-However, it is noted that there is a substantial imbalance between the classes, with $N = 95$ OSN genes and $N = 8260$ Other genes. To understand the relative positioning of all these genes in an interpretable space, we reduced the dimensionality of this concatenated dataset from 15 variables down to 2 using principal components analysis. Figure \@ref(fig:pcaSample) below visualises the genes in this low dimensional projection, with OSN genes coloured red and Other genes coloured green. A $99\%$ covariance ellipsoid was calculated from the multivariate normal distribution of the first two PCs for the OSN genes to visualise the number of Other genes that can be considered *least similar* to OSN genes in this space.
+However, it is noted that there is a substantial imbalance between the classes, with $N = 95$ OSN genes and $N = 8260$ Other genes. As such, a method for reducing the severe class imbalance was devised. First, we fit a PCA to the combined Transcriptome/Proteome dataset for the Other genes only. We then used the values for each principal component as input to a set of nine $k$-means clustering models to uncover structure in the data --- where $k$ ranged from $k = 1$ to $k = 9$. Figure \@ref(fig:kCluster) plots the results for each of the nine $k$-means models where each point is shaded by its assigned cluster. While increasing $k$ clearly adds sophistication and nuance, it does so at the expense of parsimony and sample size per cluster.
 
-```{r pcaSample, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse) and other genes coloured in green."}
-# Visualise genes from both classes in low dimensional space
+```{r kCluster, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 7, fig.cap = "Plot of nine k-means clustering models fit to the first two principal components of 'Other' genes in the combined Transcriptome/Proteome dataset."}
+# Filter to "Other" genes
 
-osn_pca <- stats::prcomp(prot_trans_df[, 2:16], scale = TRUE)
+prot_trans_other <- prot_trans_df %>%
+  tibble::column_to_rownames(var = "gene") %>%
+  filter(label == "Other") %>%
+  dplyr::select(-c(label))
+
+# Fit PCA
+
+osn_pca <- stats::prcomp(prot_trans_other, scale = TRUE)
 
 osn_pca_df <- osn_pca %>%
-  augment(as.data.frame(prot_trans_df[, 2:16])) %>%
-  dplyr::select(c(.fittedPC1:.fittedPC15)) %>%
-  mutate(gene = prot_trans_df$gene,
-         label = prot_trans_df$label)
+  augment(prot_trans_other) %>%
+  dplyr::select(c(.fittedPC1:.fittedPC15))
 
-osn_pca_eigens <- osn_pca %>%
-  tidy(matrix = "eigenvalues") %>%
-  filter(PC %in% c(1, 2)) %>% # Filter to just the 2 going in the plot
-  select(c(PC, percent)) %>%
-  mutate(percent = paste0("(", round(percent * 100, digits = 2), "%)")) # Make nice format
+rownames(osn_pca_df) <- rownames(prot_trans_other)
 
-osn_pca_plot <- osn_pca_df %>%
-  ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
-  geom_point(data = subset(osn_pca_df, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
-  stat_ellipse(data = subset(osn_pca_df, label == "OSN"), type = "norm", level = 0.99, geom = "polygon", alpha = 0.4, fill = "#F8766D") +
-  geom_point(data = subset(osn_pca_df, label == "OSN"), size = 1, colour = "#F8766D") +
-  labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
-       y = paste0("PC 2 ", osn_pca_eigens$percent[2]),
-       caption = "Variance explained by each PC is shown in parentheses.") +
-  scale_fill_brewer(palette = "Dark2") +
+# Fit 9 candidate k-means
+
+kclusts <- 
+  tibble(k = 1:9) %>%
+  mutate(
+    kclust = purrr::map(k, ~ kmeans(osn_pca_df, .x)),
+    tidied = purrr::map(kclust, tidy),
+    glanced = purrr::map(kclust, glance),
+    augmented = purrr::map(kclust, augment, osn_pca_df)
+  )
+
+# Extract summaries for each model
+
+assignments <- kclusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings <- kclusts %>%
+  unnest(cols = c(glanced))
+
+# Draw plot summarising each point's position in low dimensional space coloured by cluster
+
+kplots <- ggplot(assignments, aes(x = .fittedPC1, y = .fittedPC2)) +
+  geom_point(aes(color = .cluster), alpha = 0.6) + 
+  labs(x = "PC 1",
+       y = "PC 2",
+       colour = "Cluster") +
+  facet_wrap(~ k) +
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        strip.background = element_blank())
 
-print(osn_pca_plot)
+print(kplots)
 ```
 
-Guided by the low dimensional projection presented in Figure \@ref(fig:pcaSample), we can reduce the class imbalance in the data through statistical selection of a sample of "Other" genes that are 'least like' the OSN genes from which we can construct a classification algorithm. The heuristic for this paper is that we will retain only those Other genes which lie outside the $99\%$ multivariate normal distribution covariance ellipse of the OSN genes in the two-dimensional space of $PC1$ and $PC2$. The below code finds these genes and highlights them in the space, as plotted in Figure \@ref(fig:pcaSubset). This reduces the sample size of Other genes from $8260$ to $389$, which represents a shift in ratio of $OSN:Other$ genes of $95:8260$ to $95:389$ which is much more appropriate for statistical modelling.
+We then inspected the elbow plot produced by graphing the number of clusters $k$ against the total within sums of squares for each model (see Figure \@ref(fig:kElbow)). Evidently, a bend is visible from $k = 3$, however, $k = 4$ was selected for two reasons: (i) a marked reduction in within sums of squares was noted but a relatively lesser improvement for $k = 5$ was noted; and (ii) visually, $k = 4$ looked appropriate in Figure \@ref(fig:kCluster) in terms of parsimony and ensuring appropriate nuance.
 
-```{r pcaSubset, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Low dimensional projection of transcriptome and proteome time-course differentation using PCA by class, with OSN genes coloured in red (with covariance ellipse), other genes coloured in green, and the subset of other genes that are least like OSN genes as determined by positioning outside the covariance ellipse are coloured in purple."}
-# Find "Other" genes which lie outside the 99% covariance ellipse of the OSN genes
+```{r kElbow, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.cap = "Elbow plot of nine k-means clustering models. A k value of three of four is the ideal tradeoff between parsimony and sufficient complexity."}
+k_elbow <- ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "k",
+       y = "Total within sums of squares") +
+  scale_x_continuous(breaks = seq(from = 1, to = 9, by = 1)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
 
-coords <- ggplot_build(osn_pca_plot)$data
-points <- coords[[1]]
-ell <- coords[[2]]
+print(k_elbow)
+```
 
-other <- data.frame(points[1:2], 
-                    in.ell = as.logical(sp::point.in.polygon(points$x, points$y, ell$x, ell$y))) %>%
-  mutate(gene = subset(osn_pca_df, label == "Other")$gene) %>%
-  filter(!in.ell) %>%
-  pull(gene) # Retain "Other" genes that lie outside the covariance ellipse
+Guided by the $k$-means results, we then generated the final list of Other genes to use when training the classification models. This involved drawing $5\%$ of samples from each cluster. This produced a final number of $n = 410$ Other genes, and a ratio of $4.3$ Other genes to every $1$ OSN gene ($n = 95$ total). While still imbalanced, the magnitude of the original $87:1$ imbalance is substantially reduced without under-sampling the smaller clusters identified above.
+
+``````{r, message = FALSE, warning = FALSE}
+# Filter to optimal solution and add back to gene list
+
+opt_k <- assignments %>%
+  filter(k == 4) %>%
+  dplyr::select(.fittedPC1:.fittedPC15, .cluster)
+
+other_genes <- osn_pca_df %>%
+  left_join(opt_k) %>%
+  mutate(gene = rownames(osn_pca_df))
+
+# Draw random samples from each cluster
+
+#' Draw time series plots by class
+#' @param data the dataframe containing time series data
+#' @param cluster the cluster to draw samples for
+#' @param p proportion of samples to take
+#'
+
+draw_samples <- function(data, cluster, p){
+  set.seed(123)
+  
+  samps <- data %>%
+    filter(.cluster == cluster) %>%
+    dplyr::select(gene) %>%
+    distinct() %>%
+    pull(gene)
+  
+  samps <- samps %>%
+    sample(size = (floor(p * length(samps))))
+
+  return(samps)
+}
+
+other <- unique(other_genes$.cluster) %>%
+  purrr::map(~ draw_samples(data = other_genes, cluster = .x, p = .05)) %>%
+  unlist()
 
 # Subset original proteome/transcriptome dataset
 
+keeper_genes <- append(prot_trans_df[prot_trans_df$label == "OSN", 1], other)
+
 prot_trans_df <- prot_trans_df %>%
-  filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
-
-# Filter and re-draw plot
-
-osn_pca_plot_hl <- osn_pca_df %>%
-  mutate(label = ifelse(label == "Other" & gene %in% other, "Subset", as.character(label)))
-
-osn_pca_plot_hl <- osn_pca_plot_hl %>%
-  ggplot(aes(x = .fittedPC1, y = .fittedPC2)) +
-  geom_point(data = subset(osn_pca_plot_hl, label == "Other"), size = 1, alpha = 0.8, colour = "#00BFC4") +
-  stat_ellipse(data = subset(osn_pca_plot_hl, label == "OSN"), type = "norm", level = 0.99, geom = "polygon", alpha = 0.4, fill = "#F8766D") +
-  geom_point(data = subset(osn_pca_plot_hl, label == "OSN"), size = 1, colour = "#F8766D") +
-  geom_point(data = subset(osn_pca_plot_hl, label == "Subset"), size = 1, colour = "#C77CFF") +
-  labs(x = paste0("PC 1 ", osn_pca_eigens$percent[1]),
-       y = paste0("PC 2 ", osn_pca_eigens$percent[2]),
-       caption = "Variance explained by each PC is shown in parentheses.") +
-  scale_fill_brewer(palette = "Dark2") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-print(osn_pca_plot_hl)
+  filter(gene %in% keeper_genes)
 ```
 
 Preparation of the epigenome datasets according to the filtering of Other genes was also performed separately for each of the six histone marks:
@@ -302,41 +346,41 @@ Preparation of the epigenome datasets according to the filtering of Other genes 
 ```{r, message = FALSE, warning = FALSE}
 #' Function to prepare histone mark data for modelling
 #' @param X the data matrix
+#' @param keepers vector of genes to keep if \code{cm = FALSE}
 #' @param cm \code{Boolean} whether to label based on subset (for training) or not (for predictive evaluation). Defaults to \code{FALSE}
 #' @return an object of class \code{data.frame}
 #' 
 
-prepare_histone_df <- function(X, cm = FALSE){
+prepare_histone_df <- function(X, keepers, cm = FALSE){
   
   X1 <- as.data.frame(X) %>%
   tibble::rownames_to_column(var = "gene")
   
   if(cm){
     X1 <- X1 %>%
-      mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
-             label = as.factor(label)) %>%
-      filter(gene %in% append(prot_trans_df2[prot_trans_df2$label == "OSN", 1], other))
+      mutate(label = ifelse(gene %in% OSN_target_genes, "OSN", "Other"),
+             label = as.factor(label))
   } else{
     X1 <- X1 %>%
-      mutate(label = ifelse(gene %in% OSN_target_genes, "OSN", "Other"),
-             label = as.factor(label)) %>%
-      filter(gene %in% append(prot_trans_df[prot_trans_df$label == "OSN", 1], other))
+      filter(gene %in% keepers) %>%
+      mutate(label = ifelse(gene %in% OSN_target_genes_subset, "OSN", "Other"),
+             label = as.factor(label))
   }
   
   return(X1)
 }
 
-H3K27ac_df <- prepare_histone_df(H3K27ac)
-H3K27me3_df <- prepare_histone_df(H3K27me3)
-H3K4me1_df <- prepare_histone_df(H3K4me1)
-H3K4me3_df <- prepare_histone_df(H3K4me3)
-H3K9me2_df <- prepare_histone_df(H3K9me2)
-PolII_df <- prepare_histone_df(PolII)
+H3K27ac_df <- prepare_histone_df(H3K27ac, keepers = keeper_genes, cm = FALSE)
+H3K27me3_df <- prepare_histone_df(H3K27me3, keepers = keeper_genes, cm = FALSE)
+H3K4me1_df <- prepare_histone_df(H3K4me1, keepers = keeper_genes, cm = FALSE)
+H3K4me3_df <- prepare_histone_df(H3K4me3, keepers = keeper_genes, cm = FALSE)
+H3K9me2_df <- prepare_histone_df(H3K9me2, keepers = keeper_genes, cm = FALSE)
+PolII_df <- prepare_histone_df(PolII, keepers = keeper_genes, cm = FALSE)
 ```
 
 ## Gene classification
 
-Following exploratory data analysis, a set of seven predictive models for identifying gene membership to the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with an exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). Putting this together, we can define a GP as:
+Following exploratory data analysis, a set of seven predictive models for identifying whether a gene is a target of the two transcription factors of interest (SOX2 and NANOG) or not was constructed (one model for each dataset --- the combined proteome/transcriptome dataset and the six individual histone marks). The type of classification model that was chosen is a Gaussian process (GP) with an exponentiated-quadratic kernel/covariance function (also known as a "radial basis function" or "squared exponential"). Recall that a Gaussian distribution is parameterised by two scalar values: (i) mean $\mu$; and (ii) variance $\sigma^{2}$ (or the standard deviation which is the square root of the variance). We can write it as $\mathcal{N}(\mu, \sigma^{2})$. We can increase the dimensionality of this univariate case to describe *multivariate Gaussian distributions*, by increasing the dimensionality of the parameters. This results in the mean becoming a *mean vector* $\mu$ and the variance becoming a *covariance matrix* $\Sigma$ (as we now need to describe both the variance of each variable and the covariance between them), written as $\textbf{X} \sim \mathcal{N}(\mu, \Sigma)$. A GP is a generalisation of this idea to an infinite number of dimensions. This means the mean vector and covariance matrix now become a *mean function* $m(x)$ and *covariance function* $k(x, x')$ (also called a "kernel"). Putting this together, we can define a GP as:
 
 $$
 f(x) = \mathcal{GP}(m(x), k(x, x'))
@@ -394,7 +438,7 @@ names(models) <- c("prot_trans_df", "H3K27ac_df", "H3K27me3_df", "H3K4me1_df", "
 
 ### Comparison to benchmark results
 
-With the seven models now trained, we move to comparing predictive performance against benchmarks. The major comparison is the performance of each model in predicting gene class membership of the whole list of OSN target genes and not just the subset which formed the basis of the data to train each model. Performance can be quantified through different metrics obtained via calculations on the confusion matrix --- a matrix which cross-tabulates frequencies of model predictions against the actual class labels. The confusion matrix (for a two-class problem) returns four potential mutually-exclusive, collectively-exhaustive values: (i) true positive (TP); (ii) false positive (FP); (iii) false negative (FN); and (iv) true negative (TN). We summarise each model's predictive performance of the full gene set using four metrics calculated from the confusion matrix:
+With the seven models now trained, we moved to evaluating each model's ability to predict gene class of the whole list of OSN target genes and not just the subset which formed the basis of the data to train each model. We also used the full set of Other genes in this comparison for an exhaustive evaluation. Performance for binary classification problems can be quantified through different metrics obtained via calculations on the confusion matrix --- a matrix which cross-tabulates frequencies of model predictions against the actual class labels. The confusion matrix (for a two-class problem) returns four potential mutually-exclusive, collectively-exhaustive values: (i) true positive (TP); (ii) false positive (FP); (iii) false negative (FN); and (iv) true negative (TN). We summarise each model's predictive performance of the full gene set using four specific metrics calculated from the confusion matrix:
 
 1. Accuracy $= \frac{\text{TP} + \text{TN}}{\text{TP} + \text{FP} + \text{FN} + \text{TN}}$
 3. Sensitivity $= \frac{\text{TP}}{\text{TP} + \text{FN}}$
@@ -411,9 +455,6 @@ prot_trans_df2 <- Proteome2 %>%
   mutate(label = ifelse(gene %in% OSN_target_genes, "OSN", "Other"),
          label = as.factor(label))
 
-prot_trans_df2 <- prot_trans_df2 %>%
-  filter(gene %in% append(prot_trans_df2[prot_trans_df2$label == "OSN", 1], other))
-
 H3K27ac_df2 <- prepare_histone_df(H3K27ac, cm = TRUE)
 H3K27me3_df2 <- prepare_histone_df(H3K27me3, cm = TRUE)
 H3K4me1_df2 <- prepare_histone_df(H3K4me1, cm = TRUE)
@@ -425,14 +466,16 @@ eval_dfs <- list(prot_trans_df2, H3K27ac_df2, H3K27me3_df2, H3K4me1_df2, H3K4me3
 # Compute performance metrics for each model/dataset
 
 metrics <- list()
+rocplots <- list()
 
 for(i in 1:length(models)){
   
   pred_data <- eval_dfs[[i]] %>% dplyr::select(-c(gene)) # Remove gene column to avoid model errors
   pred <- predict(models[[i]], newdata = pred_data, type = "prob") # Generate predictions
   pred <- pred %>% mutate(predicted_label = ifelse(pred[1] > pred[2], colnames(pred)[1], colnames(pred)[2]))
-  pred_data <- pred_data %>% mutate(predicted_label = as.factor(pred$predicted_label))
-  cm <- caret::confusionMatrix(pred_data$predicted_label, pred_data$label) # Confusion matrix
+  pred <- pred %>% rename(predicted_label = 3)
+  pred <- pred %>% mutate(predicted_label = as.factor(predicted_label))
+  cm <- caret::confusionMatrix(pred$predicted_label, pred_data$label) # Confusion matrix
   
   results <- data.frame(Model = ifelse(i == 1, "Proteome + Transcriptome", paste0("Epigenome (", gsub("_df", "\\1", names(models)[i]), ")")),
                         Accuracy = round(cm$overall[1], digits = 3),
@@ -441,11 +484,23 @@ for(i in 1:length(models)){
                         Specificity = round(cm$byClass[2], digits = 3)) # Summarise performance
   
   metrics[[i]] <- results
+  
+  # Draw ROC curve
+  
+  pred <- predict(models[[i]], newdata = pred_data, type = "prob")
+  roc_p <- MLeval::evalm(data.frame(pred, pred_data$label, Group = "OSN"))$roc
+
+  roc_p <- roc_p +
+    labs(subtitle = results$Model) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+
+  rocplots[[i]] <- roc_p
 }
 
 # Bind results and present table
 
-all_metrics <- do.call(rbind, metrics) %>% arrange(-Accuracy)
+all_metrics <- do.call(rbind, metrics) %>% arrange(-`Balanced.Accuracy`)
 rownames(all_metrics) <- NULL
 knitr::kable(all_metrics, caption = "Summary of predictive performance of all models.")
 ```
@@ -455,7 +510,18 @@ load("all_metrics.Rda")
 knitr::kable(all_metrics, caption = "Summary of predictive performance of all models.")
 ```
 
-We find that overall, all models can classify the larger unseen gene list with accuracy far above the chance probability of $0.5$. We find that the combined proteome/transcriptome dataset typically outperforms the individual epigenome histone mark datasets, achieving $>90\%$ for both accuracy and balanced accuracy. Further, this model often correctly predicts both the OSN class ($0.822$ sensitivity) and the Other class ($0.995$ specificity). However, it achieves this result at the expense of a slightly larger multidimensional space, as this model used 15 predictor variables compared to the 8 used by each of the histone mark models. For the epigenome models, we find that H3K9me2 demonstrates the highest accuracy ($86.3\%$), but the worst balanced accuracy ($54.4\%$) --- which indicates that this model's accuracy performance is dictated largely by assignment of class labels to the majority class ("Other"). This is further supported through its sensitivity and specificity results, which highlight that the model poorly predicts the OSN class ($0.105$ sensitivity) but predicts the Other class well ($0.983$ specificity). In contrast, the H3K27ac histone mark does not see this performance dropoff, demonstrating $69.7\%$ classification accuracy and the strongest balanced classification accuracy of all the histone marks ($69.6\%$).
+We find that overall, all models can classify the larger unseen gene list with far accuracy above the chance probability of $0.5$, with no model in fact dropping below $0.9$. However, this result is misleading due to the severe class imbalance. Observing the balanced accuracy scores, we see that they range from $0.515-0.613$, highlighting the fact that erroneously high raw accuracy can be achieved by assigning class labels to the majority class (specificity). Indeed, the specificity scores for each model were high, ranging from $0.966-0.994$. As expected, the sensitivity values (how well each model classified OSN genes) were all relatively low, with the best performing model in terms of balanced accuracy --- the epigenome histone mark H3K27ac ($0.613$ balanced accuracy) --- achieving the highest sensitivity value ($0.245$). Collectively, these results highlight that a relatively small number of time-course differentiation variables ($8-15$) can predict whether a gene is SOX2 or NANOG target with about chance balanced accuracy.
+
+We also examined receiver operating characteristic curves (ROC) for each model's predictive performance, which plots the false positive rate against the true positive rate (presented in Figure \@ref(fig:rocPlots) below). Ideally, the curve should have an inflection point as close to the top left corner as possible, where inflection in this corner signifies perfect classification accuracy. Consistent with the performance summary table presented in Table \@ref(tab:performance) above, we find that the epigenome histone mark H3K27ac exhibits the most desirable ROC curve. This was further supported numerically, as this histone demonstrated the largest area-under-the-curve of $AUC = 0.87$, closely followed by the POLII histone mark at $AUC = 0.85$.
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+load("rocplots.Rda")
+```
+
+```{r rocPlots, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 8, fig.cap = "ROC plots for predictive performance on entire gene set for the seven different models that were fit."}
+rocs <- patchwork::wrap_plots(rocplots, ncol = 4, nrow = 3)
+print(rocs)
+```
 
 ## Discussion
 
