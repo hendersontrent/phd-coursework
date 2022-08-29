@@ -1,6 +1,6 @@
 ---
 title: "OLET5602 Final Project: Transcription factor target gene prediction through multi-omics datasets"
-author: "Trent Henderson (510243698), Shivanjali Ratnaseelan, Ethan Chang, Henry Howard (520406175), Preethom Pal"
+author: "Trent Henderson (510243698), Shivanjali Ratnaseelan (490120879), Ethan Chang (520406670), Henry Howard (520406175), Preethom Pal"
 date: "`r Sys.Date()`"
 bibliography: bibliography.bib
 output: 
