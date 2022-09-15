@@ -1,0 +1,12 @@
+---
+title: "Reproducibility Essay"
+author: "Trent Henderson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+XXXX
