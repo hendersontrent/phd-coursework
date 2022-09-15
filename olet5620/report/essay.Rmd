@@ -9,4 +9,4 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-XXXX
+The work of Renner et al (2018)^[Renner F, Kersbergen I, Field M, Werthmann J. Dutch courage? Effects of acute alcohol consumption on self-ratings and observer ratings of foreign language skills. J Psychopharmacol. 2018 Jan;32(1):116-122. doi: 10.1177/0269881117735687. Epub 2017 Oct 18. PMID: 29043911.] sought to investigate the effects of acute alcohol consumption on self-ratings and the ratings of observers on foreign language skills. The study used a sample of fity native German speakers who had recently learned Dutch who were randomised into one of two conditions using experimental manipulation: (i) low dose of alcohol; or (ii) control beverage with no alcohol. Post-randomisation, the participants then engaged in a standardised conversation in Dutch with an experimenter blinded to condition. The audio reocrding of the conversation was then rated by two native Dutch speakers who were also blind to the experimental condition. Each participant also rated their own Dutch skills post-discussion.
