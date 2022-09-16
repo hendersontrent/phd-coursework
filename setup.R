@@ -22,3 +22,6 @@ if(!dir.exists('olet5610/report')) dir.create('olet5610/report')
 
 if(!dir.exists('olet5602')) dir.create('olet5602')
 if(!dir.exists('olet5602/report')) dir.create('olet5602/report')
+
+if(!dir.exists('olet5620')) dir.create('olet5620')
+if(!dir.exists('olet5620/report')) dir.create('olet5620/report')
