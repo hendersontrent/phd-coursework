@@ -14,12 +14,12 @@ The work of Renner et al. (2018)^[Renner F, Kersbergen I, Field M, Werthmann J. 
 The methods section of the study failed to report the following, which would inhibit the conduction of a replication study:
 
 * Poster materials for participant recruitment were not provided (p. 117) which may limit a replication study's ability to recruit a similar sample
-* Instructions to observers who were rating the audio recordings were not supplied (p. 118)
+* Instructions to observers who rat3e the audio recordings were not supplied (p. 118)
 * The list of standardized questions for cases when participants needed less time (p. 118) were not supplied
 * The list of thirteen arithmetic problems were not supplied (p. 118), meaning an exact replication cannot be conducted
 * It is unclear if all participants waited together or if there was indeed some overlap at all prior to engagement with the experiment (p. 119) as the study just notes that testing took place between 1.00 pm and 4.00 pm
 * The location of the study was described as a "laboratory visually resembling a pub" (p. 119) but no visual evidence was provided to enable an exact replication (i.e., photograph) --- this is important as the overall setting of the experiment may itself influence the behaviour and perceptions of participants (and the experimenter)
-* The exact instrumental music that participants listened to after consumption of the drink for fifteen minutes prior to the language task was not shared (p. 119), so an exact replication could not be performed from reading this article alone
+* The exact instrumental music that participants listened to after consumption of the drink for fifteen minutes prior to the language task was not shared (p. 119), so an exact replication could not be performed
 * The type of headphones used to listen to the instrumental music were also not noted (p. 119) --- while not a large deal, there could be some influence on the study if noise cancelling headphones were used versus non-noise cancelling in a potential replication study
 * Experimenter scripts were not provided, meaning the process of welcoming the participant, providing written and verbal information about the study, and the offering of the drink (p. 119) cannot be reproduced exactly --- this primer of study information is important to be the same to ensure participant expectations are the same in a potential replication
 
